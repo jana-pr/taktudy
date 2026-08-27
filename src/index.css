@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-outdoor-bg text-outdoor-text dark:bg-outdoor-dark-bg dark:text-outdoor-dark-text font-sans antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Hide scrollbar for clean horizontal chip scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* iOS Safe Area padding */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
+
+/* Animation for pulsating TOP marker */
+@keyframes spinSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spinSlow 12s linear infinite;
+}

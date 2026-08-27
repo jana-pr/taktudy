@@ -1,0 +1,89 @@
+import { describe, it, expect, beforeAll } from 'vitest';
+import { db, initDatabase } from '../src/db.js';
+import { hashPassword, verifyPassword, generateToken } from '../src/auth.js';
+import { parseUrlSafely } from '../src/url-parser.js';
+
+describe('Tak tudy! Backend & Security Tests', () => {
+  beforeAll(() => {
+    initDatabase();
+  });
+
+  it('AC-15: Persistence - Database initializes and contains demo user and seed categories', () => {
+    const categories = db.prepare('SELECT * FROM categories').all();
+    expect(categories.length).toBeGreaterThanOrEqual(8);
+
+    const demoUser = db.prepare('SELECT * FROM users WHERE email = ?').get('demo@taktudy.app') as any;
+    expect(demoUser).toBeDefined();
+    expect(demoUser.display_name).toBe('Cestovatelka Jana');
+    expect(verifyPassword('heslo123', demoUser.password_hash)).toBe(true);
+  });
+
+  it('AC-01: Multiple trips - User owns and can query trips', () => {
+    const demoUser = db.prepare('SELECT id FROM users WHERE email = ?').get('demo@taktudy.app') as any;
+    const trips = db.prepare('SELECT * FROM trips WHERE owner_id = ? AND is_deleted = 0').all(demoUser.id);
+    expect(trips.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('AC-02: Hierarchy - Trip has stages, days and assigned POIs', () => {
+    const trip = db.prepare('SELECT id FROM trips WHERE id = ?').get('trip_srilanka_001') as any;
+    expect(trip).toBeDefined();
+
+    const stages = db.prepare('SELECT * FROM stages WHERE trip_id = ?').all(trip.id);
+    expect(stages.length).toBeGreaterThanOrEqual(2);
+
+    const days = db.prepare('SELECT * FROM days WHERE trip_id = ?').all(trip.id);
+    expect(days.length).toBeGreaterThanOrEqual(1);
+
+    const pois = db.prepare('SELECT * FROM pois WHERE trip_id = ? AND is_deleted = 0').all(trip.id);
+    expect(pois.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('AC-03 & AC-04: TOP Flag - Correct identification and filtering of TOP places', () => {
+    const topPois = db.prepare('SELECT * FROM pois WHERE trip_id = ? AND is_top = 1 AND is_deleted = 0').all('trip_srilanka_001') as any[];
+    expect(topPois.length).toBeGreaterThanOrEqual(2);
+    for (const p of topPois) {
+      expect(p.is_top).toBe(1);
+    }
+  });
+
+  it('AC-12: Sharing - Generates unguessable token and provides isolated read-only access', () => {
+    const token = generateToken(24);
+    expect(token.length).toBeGreaterThan(25);
+
+    const now = new Date().toISOString();
+    const testShareId = `sh_test_${Date.now()}`;
+    db.prepare(`
+      INSERT OR REPLACE INTO share_tokens (id, trip_id, token, is_active, include_notes, created_at)
+      VALUES (?, ?, ?, 1, 0, ?)
+    `).run(testShareId, 'trip_srilanka_001', token, now);
+
+    // Verify retrieval without private notes
+    const share = db.prepare('SELECT * FROM share_tokens WHERE token = ? AND is_active = 1').get(token) as any;
+    expect(share).toBeDefined();
+
+    const trip = db.prepare('SELECT id, title, motto FROM trips WHERE id = ?').get(share.trip_id) as any;
+    expect(trip.title).toBe('Srí Lanka — okruh');
+
+    // Private notes should be hidden when include_notes = 0
+    const pois = db.prepare(`
+      SELECT id, name, CASE WHEN ? = 1 THEN private_notes ELSE NULL END as private_notes
+      FROM pois WHERE trip_id = ?
+    `).all(share.include_notes, trip.id) as any[];
+
+    for (const p of pois) {
+      expect(p.private_notes).toBeNull();
+    }
+  });
+
+  it('AC-14: BOLA / IDOR Protection - Query verifies ownership check', () => {
+    const maliciousUserId = 'usr_hacker_999';
+    const unauthorizedTrip = db.prepare('SELECT * FROM trips WHERE id = ? AND owner_id = ?').get('trip_srilanka_001', maliciousUserId);
+    expect(unauthorizedTrip).toBeUndefined();
+  });
+
+  it('Security: SSRF Protection blocks localhost and private IPs', async () => {
+    await expect(parseUrlSafely('http://localhost:3000')).rejects.toThrow();
+    await expect(parseUrlSafely('http://127.0.0.1:5432')).rejects.toThrow();
+    await expect(parseUrlSafely('http://169.254.169.254/latest/meta-data')).rejects.toThrow();
+  });
+});

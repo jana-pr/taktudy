@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Tak tudy! — Plánuji, abych měla svobodu</title>
+    <meta name="description" content="Cestovní aplikace Tak tudy! Spojení mapy, tras, itineráře, bodů zájmu a svobody v terénu." />
+    
+    <!-- PWA & Mobile Icons -->
+    <meta name="theme-color" content="#006D77" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- Google Fonts: Nunito Sans & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;0,6..12,800;1,6..12,400&display=swap" rel="stylesheet" />
+
+    <!-- MapLibre GL CSS -->
+    <link href="https://unpkg.com/maplibre-gl@5.2.0/dist/maplibre-gl.css" rel="stylesheet" />
+  </head>
+  <body class="bg-outdoor-bg text-outdoor-text dark:bg-outdoor-dark-bg dark:text-outdoor-dark-text font-sans antialiased min-h-screen selection:bg-outdoor-teal selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
