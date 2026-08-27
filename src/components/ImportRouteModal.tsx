@@ -82,6 +82,22 @@ export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
     }
   };
 
+  const handleDirectImportPastedText = async () => {
+    if (!pastedText.trim()) return;
+    setError(null);
+    setLoading(true);
+
+    try {
+      const res = await tripsApi.importRoute(pastedText.trim(), 'vlozeny-chatgpt-plan.json', true);
+      onTripImported(res.id);
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Chyba při zakládání trasy z textu.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleConfirmImport = async () => {
     if (!fileContent) return;
 
@@ -215,15 +231,26 @@ export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
                 placeholder={'Zde vložte text z ChatGPT (i včetně ```json ... ```). Aplikace si JSON sama automaticky najde a očistí.'}
                 className="w-full p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 text-xs font-mono text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
               />
-              <button
-                type="button"
-                disabled={loading || !pastedText.trim()}
-                onClick={handleAnalyzePastedText}
-                className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2"
-              >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                Zkontrolovat a načíst trasu
-              </button>
+              <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                <button
+                  type="button"
+                  disabled={loading || !pastedText.trim()}
+                  onClick={handleDirectImportPastedText}
+                  className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  <span>Založit novou cestu z textu</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={loading || !pastedText.trim()}
+                  onClick={handleAnalyzePastedText}
+                  className="py-3 px-4 border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 rounded-xl text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <span>Pouze náhled</span>
+                </button>
+              </div>
             </div>
           )}
 

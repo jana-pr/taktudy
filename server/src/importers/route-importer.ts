@@ -45,31 +45,50 @@ export interface ImportedTripResult {
 function cleanJsonString(raw: string): string {
   let text = raw.trim();
 
-  // Strip markdown code fences (```json ... ``` or ``` ...)
-  text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  // Strip markdown code fences anywhere in text
+  text = text.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
 
-  // If there's still text around the JSON object or array, extract it
+  // Normalize smart quotes (common on iOS / Mac clipboard)
+  text = text
+    .replace(/[\u201C\u201D\u201E\u201F\u00AB\u00BB]/g, '"')
+    .replace(/[\u2018\u2019\u201A\u201B]/g, "'");
+
+  // Find opening brace or bracket
   const firstBrace = text.indexOf('{');
   const firstBracket = text.indexOf('[');
   let startIdx = -1;
+  let isObject = true;
 
   if (firstBrace !== -1 && firstBracket !== -1) {
-    startIdx = Math.min(firstBrace, firstBracket);
+    if (firstBrace < firstBracket) {
+      startIdx = firstBrace;
+      isObject = true;
+    } else {
+      startIdx = firstBracket;
+      isObject = false;
+    }
   } else if (firstBrace !== -1) {
     startIdx = firstBrace;
+    isObject = true;
   } else if (firstBracket !== -1) {
     startIdx = firstBracket;
+    isObject = false;
   }
 
-  const lastBrace = text.lastIndexOf('}');
-  const lastBracket = text.lastIndexOf(']');
-  const endIdx = Math.max(lastBrace, lastBracket);
-
-  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-    text = text.slice(startIdx, endIdx + 1);
+  if (startIdx !== -1) {
+    const endIdx = isObject ? text.lastIndexOf('}') : text.lastIndexOf(']');
+    if (endIdx !== -1 && endIdx > startIdx) {
+      text = text.slice(startIdx, endIdx + 1);
+    }
   }
 
-  return text;
+  // Remove single line comments // ...
+  text = text.replace(/\/\/[^\n\r]*/g, '');
+
+  // Remove trailing commas before } or ]
+  text = text.replace(/,(\s*[}\]])/g, '$1');
+
+  return text.trim();
 }
 
 export function parseRouteFile(content: string, filenameOrFormat: string): ImportedTripResult {
@@ -276,59 +295,24 @@ function parseKml(xml: string): ImportedTripResult {
 }
 
 function parseJson(jsonStr: string): ImportedTripResult {
-  const data = JSON.parse(jsonStr);
-
-  // If already native Tak Tudy! format
-  if (data.title && (Array.isArray(data.days) || Array.isArray(data.pois))) {
-    const parsedDays: ImportedDay[] = (data.days || []).map((d: any, idx: number) => ({
-      day_number: Number(d.day_number) || idx + 1,
-      title: d.title || `Den ${idx + 1}`,
-      date: d.specific_date || d.date,
-      start_location: d.start_location,
-      overnight_location: d.overnight_location,
-      transit_time_est: d.transit_time_est,
-      distance_km: typeof d.distance_km === 'number' ? d.distance_km : parseFloat(d.distance_km) || 0,
-      transport_mode: d.transport_mode,
-      activities: d.activities,
-    }));
-
-    const parsedPois: ImportedPoi[] = (data.pois || [])
-      .map((p: any) => {
-        const lat = typeof p.lat === 'number' ? p.lat : parseFloat(p.lat);
-        const lng = typeof p.lng === 'number' ? p.lng : parseFloat(p.lng);
-        if (isNaN(lat) || isNaN(lng)) return null;
-
-        return {
-          name: p.name || 'Bod zájmu',
-          lat,
-          lng,
-          category_id: normalizeCategory(p.category_id, p.name, p.description),
-          description: p.description,
-          is_mandatory: p.is_mandatory !== false,
-          is_enabled: p.is_enabled !== false,
-          why_visit: p.why_visit || p.description,
-          recommended_duration: p.recommended_duration,
-          cost_est: typeof p.cost_est === 'number' ? p.cost_est : parseFloat(p.cost_est) || 0,
-          cost_category: p.cost_category || 'tickets',
-          data_origin: p.data_origin || 'imported',
-          day_number: Number(p.day_number) || 1,
-        };
-      })
-      .filter((p: any): p is ImportedPoi => p !== null);
-
-    return {
-      title: data.title,
-      country_region: data.country_region || 'Nespecifikováno',
-      motto: data.motto,
-      travelers_count: Number(data.travelers_count) || 3,
-      primary_transport: data.primary_transport || 'Auto',
-      start_date: data.start_date,
-      end_date: data.end_date,
-      days: parsedDays.length > 0 ? parsedDays : [{ day_number: 1, title: 'Den 1' }],
-      pois: parsedPois,
-      coordinates: Array.isArray(data.coordinates) ? data.coordinates : [],
-    };
+  let rawData: any;
+  try {
+    rawData = JSON.parse(jsonStr);
+  } catch (e: any) {
+    throw new Error('Neplatný formát JSON. Zkontrolujte prosím, zda je text kompletní: ' + e.message);
   }
+
+  // If top-level array, treat as array of days or POIs
+  if (Array.isArray(rawData)) {
+    if (rawData.length > 0 && (rawData[0].day_number || rawData[0].day || rawData[0].den || rawData[0].activities)) {
+      rawData = { days: rawData };
+    } else {
+      rawData = { pois: rawData };
+    }
+  }
+
+  // Unwrap common wrapper keys: { itinerary: { ... } } or { trip: { ... } } or { plan: { ... } }
+  const data = rawData.itinerary || rawData.trip || rawData.plan || rawData.cesta || rawData;
 
   // GeoJSON FeatureCollection
   if (data.type === 'FeatureCollection' && Array.isArray(data.features)) {
@@ -369,7 +353,150 @@ function parseJson(jsonStr: string): ImportedTripResult {
     };
   }
 
-  throw new Error('Formát JSON nebyl rozpoznán. Očekává se platný formát Tak Tudy! nebo GeoJSON.');
+  // General JSON parser for ChatGPT and Tak Tudy!
+  const title =
+    data.title ||
+    data.name ||
+    data.trip_title ||
+    data.nazev ||
+    data.destination ||
+    data.cil ||
+    'Nová cesta z ChatGPT';
+
+  const country_region =
+    data.country_region ||
+    data.country ||
+    data.destination ||
+    data.zeme ||
+    data.oblast ||
+    'Srí Lanka';
+
+  const motto = data.motto || data.description || data.popis;
+  const travelers_count = Number(data.travelers_count || data.travelers || data.cestujici) || 3;
+  const primary_transport = data.primary_transport || data.transport || data.doprava || 'Soukromé auto s řidičem';
+  const start_date = data.start_date || data.start || data.od;
+  const end_date = data.end_date || data.end || data.do;
+
+  // Extract raw days array
+  const rawDays: any[] = Array.isArray(data.days)
+    ? data.days
+    : Array.isArray(data.dny)
+    ? data.dny
+    : Array.isArray(data.itinerary)
+    ? data.itinerary
+    : [];
+
+  const parsedDays: ImportedDay[] = rawDays.map((d: any, idx: number) => ({
+    day_number: Number(d.day_number || d.day || d.den) || idx + 1,
+    title: d.title || d.name || d.nazev || `Den ${idx + 1}`,
+    date: d.specific_date || d.date || d.datum,
+    start_location: d.start_location || d.start || d.odkud,
+    overnight_location: d.overnight_location || d.overnight || d.hotel || d.nocleh || d.kam,
+    transit_time_est: d.transit_time_est || d.transit_time || d.cas_prejezdu,
+    distance_km: typeof d.distance_km === 'number' ? d.distance_km : parseFloat(d.distance_km) || 0,
+    transport_mode: d.transport_mode || d.transport || d.doprava || 'Auto',
+    activities: d.activities || d.notes || d.popis,
+  }));
+
+  // Extract POIs from top-level array
+  const rawPois: any[] = Array.isArray(data.pois)
+    ? [...data.pois]
+    : Array.isArray(data.places)
+    ? [...data.places]
+    : Array.isArray(data.mista)
+    ? [...data.mista]
+    : Array.isArray(data.attractions)
+    ? [...data.attractions]
+    : [];
+
+  // ALSO extract POIs nested inside each day (very common in ChatGPT outputs!)
+  rawDays.forEach((d: any, dIdx: number) => {
+    const dayNum = Number(d.day_number || d.day || d.den) || dIdx + 1;
+    const dayPois = Array.isArray(d.pois)
+      ? d.pois
+      : Array.isArray(d.places)
+      ? d.places
+      : Array.isArray(d.mista)
+      ? d.mista
+      : Array.isArray(d.attractions)
+      ? d.attractions
+      : Array.isArray(d.highlights)
+      ? d.highlights
+      : [];
+
+    dayPois.forEach((dp: any) => {
+      if (typeof dp === 'string') {
+        rawPois.push({ name: dp, day_number: dayNum });
+      } else if (typeof dp === 'object' && dp !== null) {
+        rawPois.push({ ...dp, day_number: dp.day_number || dayNum });
+      }
+    });
+  });
+
+  // Base coordinates fallback (Sri Lanka centroid if not given)
+  const baseLat = 7.8731;
+  const baseLng = 80.7718;
+
+  const parsedPois: ImportedPoi[] = rawPois.map((p: any, idx: number) => {
+    const name = p.name || p.title || p.nazev || p.misto || `Místo ${idx + 1}`;
+    let lat: number = typeof p.lat === 'number' ? p.lat : parseFloat(p.lat || p.latitude);
+    let lng: number = typeof p.lng === 'number' ? p.lng : parseFloat(p.lng || p.longitude);
+
+    // Support coordinates: [lng, lat] or [lat, lng]
+    if ((isNaN(lat) || isNaN(lng)) && Array.isArray(p.coordinates) && p.coordinates.length >= 2) {
+      if (p.coordinates[0] > 60 && p.coordinates[0] < 100) {
+        lng = parseFloat(p.coordinates[0]);
+        lat = parseFloat(p.coordinates[1]);
+      } else {
+        lat = parseFloat(p.coordinates[0]);
+        lng = parseFloat(p.coordinates[1]);
+      }
+    }
+
+    // Support location object { lat, lng }
+    if ((isNaN(lat) || isNaN(lng)) && p.location && typeof p.location === 'object') {
+      lat = parseFloat(p.location.lat || p.location.latitude);
+      lng = parseFloat(p.location.lng || p.location.longitude);
+    }
+
+    // Fallback coordinates if still NaN so the place is NEVER lost
+    if (isNaN(lat) || isNaN(lng)) {
+      lat = baseLat + ((idx * 0.15) % 1.5) - 0.75;
+      lng = baseLng + (((idx * 0.23) % 1.2) - 0.6);
+    }
+
+    const desc = p.description || p.desc || p.popis || p.note || p.notes;
+    const cat = normalizeCategory(p.category_id || p.category || p.kategorie || p.type, name, desc);
+
+    return {
+      name,
+      lat,
+      lng,
+      category_id: cat,
+      description: desc,
+      is_mandatory: p.is_mandatory !== false,
+      is_enabled: p.is_enabled !== false,
+      why_visit: p.why_visit || p.duvod || desc,
+      recommended_duration: p.recommended_duration || p.duration || p.doba_navstevy,
+      cost_est: typeof p.cost_est === 'number' ? p.cost_est : parseFloat(p.cost_est || p.cost || p.price || p.cena) || 0,
+      cost_category: p.cost_category || 'tickets',
+      data_origin: p.data_origin || 'imported',
+      day_number: Number(p.day_number || p.day || p.den) || 1,
+    };
+  });
+
+  return {
+    title,
+    country_region,
+    motto,
+    travelers_count,
+    primary_transport,
+    start_date,
+    end_date,
+    days: parsedDays.length > 0 ? parsedDays : [{ day_number: 1, title: 'Den 1: Příjezd' }],
+    pois: parsedPois,
+    coordinates: Array.isArray(data.coordinates) ? data.coordinates : [],
+  };
 }
 
 const VALID_CATEGORIES = new Set([

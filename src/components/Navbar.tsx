@@ -91,18 +91,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {/* Delete Active Trip Button */}
-          {activeTrip && onDeleteActiveTrip && (
-            <button
-              onClick={onDeleteActiveTrip}
-              title={`Smazat cestu "${activeTrip.title}"`}
-              className="p-1.5 rounded-lg text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors flex-shrink-0"
-              aria-label="Smazat cestu"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
-
           {/* New Trip Button */}
           <button
             onClick={onOpenNewTrip}

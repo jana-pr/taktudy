@@ -134,4 +134,41 @@ describe('Tak tudy! — 4 nové funkce (Smazání, Re-import z ChatGPT, Export, 
     const deletedTrip = db.prepare('SELECT is_deleted FROM trips WHERE id = ?').get(createdTripId) as any;
     expect(deletedTrip.is_deleted).toBe(1);
   });
+
+  it('4. Robustní import z ChatGPT: vnořená místa ve dnech, české klíče, chytré uvozovky a čárky navíc', () => {
+    const rawGptSnippet = `
+    Tady je návrh trasy pro tvou dovolenou:
+    \`\`\`json
+    {
+      “nazev”: “Krásy Cejlonu 2026”,
+      “oblast”: “Srí Lanka”,
+      “dny”: [
+        {
+          “den”: 1,
+          “nazev”: “Přílet do Colomba a transfer do Galle”, // komentář
+          “mista”: [
+            { “nazev”: “Pevnost Galle Fort”, “kategorie”: “monument”, “popis”: “Historická pevnost UNESCO” },
+            { “nazev”: “Maják v Galle”, “kategorie”: “view” },
+          ],
+        },
+        {
+          “den”: 2,
+          “nazev”: “Pláže a relax v Mirisse”,
+          “places”: [
+            “Kokosový kopec Coconut Tree Hill”,
+          ],
+        },
+      ],
+    }
+    \`\`\`
+    Šťastnou cestu!
+    `;
+
+    const parsed = parseRouteFile(rawGptSnippet, 'chatgpt-plan.json');
+    expect(parsed.title).toBe('Krásy Cejlonu 2026');
+    expect(parsed.days.length).toBe(2);
+    expect(parsed.pois.length).toBe(3); // 2 from day 1, 1 from day 2
+    expect(parsed.pois.some((p) => p.name === 'Pevnost Galle Fort')).toBe(true);
+    expect(parsed.pois.some((p) => p.name === 'Kokosový kopec Coconut Tree Hill')).toBe(true);
+  });
 });

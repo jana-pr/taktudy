@@ -241,7 +241,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
       `).run(
         tripId,
         userId,
-        parsed.title,
+        parsed.title || 'Moje nová cesta',
         parsed.motto || 'Importovaná trasa',
         parsed.country_region || null,
         parsed.travelers_count || 3,

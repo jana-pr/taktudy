@@ -719,6 +719,7 @@ export function App() {
         onCreateTrip={handleCreateTrip}
         onOpenAiPropose={() => setIsAiProposeOpen(true)}
         onOpenImport={() => setIsImportModalOpen(true)}
+        onTripImported={handleTripCreatedFromAiOrImport}
       />
 
       {activeTrip && (
@@ -729,6 +730,7 @@ export function App() {
           onUpdateTrip={handleUpdateTrip}
           onDuplicateTrip={handleDuplicateTrip}
           onDeleteTrip={handleDeleteTrip}
+          onTripUpdated={refreshActiveTrip}
         />
       )}
 
