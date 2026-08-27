@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
-import { X, Upload, FileText, CheckCircle2, AlertTriangle, Sparkles, HelpCircle, Loader2 } from 'lucide-react';
+import {
+  X,
+  Upload,
+  FileText,
+  CheckCircle2,
+  AlertTriangle,
+  Sparkles,
+  HelpCircle,
+  Loader2,
+  ClipboardList,
+} from 'lucide-react';
 import { tripsApi } from '../api/client';
 
 interface ImportRouteModalProps {
@@ -13,6 +23,8 @@ export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
   onClose,
   onTripImported,
 }) => {
+  const [tab, setTab] = useState<'upload' | 'paste'>('upload');
+  const [pastedText, setPastedText] = useState<string>('');
   const [fileContent, setFileContent] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -50,12 +62,32 @@ export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
     reader.readAsText(file);
   };
 
+  const handleAnalyzePastedText = async () => {
+    if (!pastedText.trim()) return;
+    setError(null);
+    setLoading(true);
+    setFileName('vlozeny-chatgpt-plan.json');
+    setFileContent(pastedText);
+
+    try {
+      const previewResult = await tripsApi.importRoute(pastedText, 'vlozeny-chatgpt-plan.json', false);
+      setPreview(previewResult);
+    } catch (err: any) {
+      setError(
+        err.message ||
+          'Chyba při analýze textu. Ujistěte se, že text obsahuje kód JSON vygenerovaný z ChatGPT.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleConfirmImport = async () => {
-    if (!fileContent || !fileName) return;
+    if (!fileContent) return;
 
     try {
       setLoading(true);
-      const res = await tripsApi.importRoute(fileContent, fileName, true);
+      const res = await tripsApi.importRoute(fileContent, fileName || 'import.json', true);
       onTripImported(res.id);
       onClose();
     } catch (err: any) {
@@ -75,7 +107,7 @@ export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
               Nová funkce
             </span>
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mt-0.5">
-              Importovat trasu (GPX, KML, JSON)
+              Importovat trasu
             </h2>
           </div>
           <button
@@ -86,22 +118,65 @@ export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
           </button>
         </div>
 
+        {/* Navigation Tabs between File Upload vs Text Paste */}
+        {!preview && (
+          <div className="flex items-center gap-2 pt-4 border-b border-gray-100 dark:border-gray-700 pb-3">
+            <button
+              type="button"
+              onClick={() => {
+                setTab('upload');
+                setError(null);
+              }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                tab === 'upload'
+                  ? 'bg-teal-600 text-white shadow-sm'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+              }`}
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Nahrát soubor (JSON, GPX, KML)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setTab('paste');
+                setError(null);
+              }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                tab === 'paste'
+                  ? 'bg-teal-600 text-white shadow-sm'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+              }`}
+            >
+              <ClipboardList className="w-3.5 h-3.5" />
+              <span>Vložit text z ChatGPT přímo</span>
+            </button>
+          </div>
+        )}
+
         {/* Content */}
-        <div className="py-5 overflow-y-auto space-y-5 flex-1">
+        <div className="py-5 overflow-y-auto space-y-5 flex-1 pr-1">
           {error && (
             <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-2xl text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2.5">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{error}</span>
+              <div className="space-y-1">
+                <div className="font-bold">Chyba při importu:</div>
+                <p>{error}</p>
+                <div className="text-[11px] text-rose-600 dark:text-rose-400 mt-1">
+                  💡 Tip: Můžete přepnout na záložku <strong>„Vložit text z ChatGPT přímo“</strong> a vložit text přímo bez ukládání do souboru.
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Upload Box */}
-          {!preview && (
+          {/* Mode 1: File Upload */}
+          {!preview && tab === 'upload' && (
             <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-teal-500 dark:hover:border-teal-400 rounded-3xl p-8 text-center transition-colors">
               <input
                 type="file"
                 id="route-file-input"
-                accept=".gpx,.kml,.json"
+                accept=".gpx,.kml,.json,.geojson,.txt"
                 onChange={handleFileUpload}
                 className="hidden"
               />
@@ -114,10 +189,10 @@ export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
                 </div>
                 <div>
                   <div className="text-sm font-bold text-gray-900 dark:text-white">
-                    Vyberte nebo přetáhněte soubor trasy
+                    Vyberte soubor z počítače
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Podporované formáty: <strong>GPX</strong> (Garmin, Mapy.cz), <strong>KML</strong> (Google Earth), <strong>JSON</strong>
+                    Podporované: <strong>JSON</strong>, <strong>GPX</strong>, <strong>KML</strong>, <strong>TXT</strong>
                   </div>
                 </div>
                 <span className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors">
@@ -127,12 +202,37 @@ export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
             </div>
           )}
 
+          {/* Mode 2: Direct Paste from ChatGPT */}
+          {!preview && tab === 'paste' && (
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                Vložte zkopírovaný text nebo kód z ChatGPT:
+              </label>
+              <textarea
+                rows={8}
+                value={pastedText}
+                onChange={(e) => setPastedText(e.target.value)}
+                placeholder={'Zde vložte text z ChatGPT (i včetně ```json ... ```). Aplikace si JSON sama automaticky najde a očistí.'}
+                className="w-full p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 text-xs font-mono text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <button
+                type="button"
+                disabled={loading || !pastedText.trim()}
+                onClick={handleAnalyzePastedText}
+                className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                Zkontrolovat a načíst trasu
+              </button>
+            </div>
+          )}
+
           {/* Preview of Extracted Data */}
           {preview && (
             <div className="space-y-4 animate-fade-in">
               <div className="p-4 bg-teal-50/60 dark:bg-teal-950/20 border border-teal-100 dark:border-teal-900/40 rounded-2xl">
                 <div className="text-xs font-semibold text-teal-600 dark:text-teal-400">
-                  Rozpoznaná trasa ze souboru: {fileName}
+                  Rozpoznaná trasa:
                 </div>
                 <div className="text-lg font-bold text-gray-900 dark:text-white mt-1">
                   {preview.title}
@@ -148,7 +248,7 @@ export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
               <div className="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-2xl border border-gray-100 dark:border-gray-700 text-xs space-y-1.5">
                 <div className="font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-1.5">
                   <HelpCircle className="w-3.5 h-3.5 text-teal-600" />
-                  <span>Princip transparentnosti dat v Tak tudy!:</span>
+                  <span>Rozpoznaná data:</span>
                 </div>
                 <div className="flex flex-wrap gap-2 text-[11px]">
                   <span className="px-2 py-0.5 bg-white dark:bg-gray-800 border rounded text-gray-700 dark:text-gray-300">
@@ -156,9 +256,6 @@ export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
                   </span>
                   <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 rounded flex items-center gap-1 font-medium">
                     <Sparkles className="w-2.5 h-2.5" /> Doplněno AI
-                  </span>
-                  <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 rounded font-medium">
-                    Je třeba doplnit
                   </span>
                 </div>
               </div>
@@ -185,15 +282,9 @@ export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      {p.data_origin === 'needs_completion' ? (
-                        <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 rounded text-[10px] font-bold">
-                          Je třeba doplnit
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 rounded text-[10px] font-bold flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Známý údaj
-                        </span>
-                      )}
+                      <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 rounded text-[10px] font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Připraveno
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -203,25 +294,40 @@ export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2.5 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          >
-            Zrušit
-          </button>
+        <div className="pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between gap-3">
           {preview ? (
             <button
               type="button"
-              disabled={loading}
-              onClick={handleConfirmImport}
-              className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+              onClick={() => {
+                setPreview(null);
+                setFileContent('');
+              }}
+              className="text-xs text-gray-500 underline hover:text-gray-700 dark:hover:text-gray-300"
             >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              Vytvořit cestu z importu
+              Zvolit jiný soubor
             </button>
-          ) : null}
+          ) : <div />}
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2.5 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              Zrušit
+            </button>
+            {preview ? (
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleConfirmImport}
+                className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+              >
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                Vytvořit cestu z importu
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

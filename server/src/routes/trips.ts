@@ -299,18 +299,27 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
         const poiId = `poi_${crypto.randomUUID()}`;
         const dayId = p.day_number ? dayMap.get(p.day_number) : dayMap.get(1);
 
+        const validCategories = new Set([
+          'accommodation', 'food', 'bar', 'monument', 'view', 'nature', 'transport', 'other'
+        ]);
+        let cat = (p.category_id || 'other').toLowerCase();
+        if (cat === 'sight') cat = 'monument';
+        if (cat === 'hotel') cat = 'accommodation';
+        if (cat === 'restaurant') cat = 'food';
+        if (!validCategories.has(cat)) cat = 'other';
+
         insertPoi.run(
           poiId,
           tripId,
           dayId || null,
-          p.category_id || 'other',
-          p.name,
-          p.lat,
-          p.lng,
+          cat,
+          p.name || 'Bod zájmu',
+          Number(p.lat) || 0,
+          Number(p.lng) || 0,
           p.description || null,
           p.why_visit || null,
           p.recommended_duration || null,
-          p.cost_est || 0,
+          Number(p.cost_est) || 0,
           p.cost_category || 'activities',
           p.is_mandatory ? 1 : 0,
           p.is_enabled ? 1 : 0,

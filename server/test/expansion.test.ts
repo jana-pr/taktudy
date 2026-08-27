@@ -63,6 +63,46 @@ describe('Tak tudy! — Rozšíření o import a AI návrh trasy (Tests)', () =>
     expect(parsed.pois[0].lat).toBeCloseTo(7.8567);
   });
 
+  it('2b. ChatGPT JSON s markdown blokem a textem: ořízne ```json a správně naimportuje data', () => {
+    const rawChatGpt = `Zde je váš navržený itinerář pro Srí Lanku:
+    \`\`\`json
+    {
+      "title": "Srí Lanka Dobrodružství 2026",
+      "country_region": "Srí Lanka",
+      "travelers_count": 3,
+      "primary_transport": "Soukromé auto s řidičem",
+      "days": [
+        {
+          "day_number": 1,
+          "title": "Přílet Colombo CMB",
+          "start_location": "CMB",
+          "overnight_location": "Negombo"
+        }
+      ],
+      "pois": [
+        {
+          "name": "Sigiriya Rock Fortress",
+          "lat": "7.9570",
+          "lng": "80.7603",
+          "category_id": "sight",
+          "description": "Starověká skalní pevnost",
+          "is_mandatory": true,
+          "cost_est": "36"
+        }
+      ]
+    }
+    \`\`\`
+    Doufám, že se vám plán líbí!`;
+
+    const parsed = parseRouteFile(rawChatGpt, 'chatgpt-plan.txt');
+    expect(parsed.title).toBe('Srí Lanka Dobrodružství 2026');
+    expect(parsed.pois.length).toBe(1);
+    expect(parsed.pois[0].name).toBe('Sigiriya Rock Fortress');
+    expect(parsed.pois[0].lat).toBeCloseTo(7.957);
+    expect(parsed.pois[0].category_id).toBe('monument'); // Normalized from 'sight'
+    expect(parsed.pois[0].cost_est).toBe(36);
+  });
+
   it('3. AI Návrh trasy: vygeneruje strukturovaný návrh s varováním na dlouhé přejezdy', async () => {
     const proposal = await proposeTrip(
       'Srí Lanka, 26. 12. 2026–10. 1. 2027, 3 dospělí, soukromý řidič, chceme přírodu, historii, pěší výlety a několik dní u moře.'
