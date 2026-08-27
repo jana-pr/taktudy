@@ -1,13 +1,14 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
-import { POI, Category, Day, Tip } from '../types';
-import { Star, Layers, Plus, MapPin, Lightbulb } from 'lucide-react';
+import { POI, Category, Day, Tip, Accommodation } from '../types';
+import { Star, Layers, Plus, MapPin, Lightbulb, Bed, ExternalLink } from 'lucide-react';
 
 interface MapViewProps {
   pois: POI[];
   categories: Category[];
   days?: Day[];
   tips?: Tip[];
+  accommodations?: Accommodation[];
   showTips?: boolean;
   onToggleShowTips?: () => void;
   selectedCategory: string | null;
@@ -22,11 +23,47 @@ interface MapViewProps {
   isDarkMode: boolean;
 }
 
+const KNOWN_LOCATION_COORDS: Record<string, [number, number]> = {
+  'negombo': [7.2089, 79.8358],
+  'habarana': [8.0336, 80.7516],
+  'sigiriya': [7.9570, 80.7603],
+  'dambulla': [7.8731, 80.6517],
+  'polonnaruwa': [7.9403, 81.0188],
+  'kandy': [7.2906, 80.6337],
+  'nuwara eliya': [6.9697, 80.7674],
+  'ella': [6.8667, 81.0466],
+  'tissamaharama': [6.2778, 81.2861],
+  'yala': [6.2778, 81.2861],
+  'mirissa': [5.9482, 80.4568],
+  'weligama': [5.9725, 80.4289],
+  'galle': [6.0329, 80.2168],
+  'katunayake': [7.1650, 79.8880],
+  'colombo': [6.9271, 79.8612],
+};
+
+function getAccommodationCoords(acc: Accommodation): { lat: number; lng: number } | null {
+  if (typeof acc.lat === 'number' && typeof acc.lng === 'number') {
+    return { lat: acc.lat, lng: acc.lng };
+  }
+
+  if (acc.location) {
+    const locLower = acc.location.toLowerCase();
+    for (const [key, [lat, lng]] of Object.entries(KNOWN_LOCATION_COORDS)) {
+      if (locLower.includes(key)) {
+        return { lat, lng };
+      }
+    }
+  }
+
+  return null;
+}
+
 export const MapView: React.FC<MapViewProps> = ({
   pois,
   categories,
   days = [],
   tips = [],
+  accommodations = [],
   showTips = false,
   onToggleShowTips,
   selectedCategory,
@@ -44,12 +81,22 @@ export const MapView: React.FC<MapViewProps> = ({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const safePois = pois || [];
+  const safeAccommodations = accommodations || [];
+
+  // Toggle showing accommodations on map (default ON)
+  const [showAccommodations, setShowAccommodations] = useState(true);
 
   // Filter POIs by Category, Top, and Day
   const filteredPois = safePois.filter((p) => {
     if (selectedDayId && p.day_id !== selectedDayId) return false;
     if (onlyTop && !p.is_top) return false;
     if (selectedCategory && p.category_id !== selectedCategory) return false;
+    return true;
+  });
+
+  // Filter Accommodations by Day
+  const filteredAccommodations = safeAccommodations.filter((acc) => {
+    if (selectedDayId && acc.day_id && acc.day_id !== selectedDayId) return false;
     return true;
   });
 
@@ -96,11 +143,10 @@ export const MapView: React.FC<MapViewProps> = ({
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    if (filteredPois.length === 0) return;
-
     const bounds = new maplibregl.LngLatBounds();
     const coordinates: [number, number][] = [];
 
+    // Render POI markers
     filteredPois.forEach((poi) => {
       if (typeof poi.lat !== 'number' || typeof poi.lng !== 'number') return;
 
@@ -157,6 +203,60 @@ export const MapView: React.FC<MapViewProps> = ({
       markersRef.current.push(marker);
     });
 
+    // Render Accommodations / Hotels markers
+    if (showAccommodations || selectedCategory === 'accommodation') {
+      filteredAccommodations.forEach((acc, idx) => {
+        const coords = getAccommodationCoords(acc);
+        if (!coords) return;
+
+        bounds.extend([coords.lng, coords.lat]);
+
+        const dayObj = days.find((d) => d.id === acc.day_id);
+        const dayLabel = dayObj ? `Den ${dayObj.day_number}` : `Noc ${idx + 1}`;
+
+        const accEl = document.createElement('div');
+        accEl.className = 'custom-hotel-marker cursor-pointer transform -translate-x-1/2 -translate-y-1/2 transition-transform hover:scale-125';
+        accEl.setAttribute('aria-label', `Ubytování: ${acc.hotel_name}`);
+        accEl.innerHTML = `
+          <div class="relative flex items-center justify-center">
+            <div class="w-9 h-9 rounded-full bg-teal-600 dark:bg-teal-500 text-white flex items-center justify-center shadow-xl border-2 border-white dark:border-stone-900 ring-2 ring-teal-300">
+              <span class="text-sm">🏨</span>
+            </div>
+            <div class="absolute -top-2 -right-1.5 bg-teal-800 text-white text-[9px] font-black px-1 rounded-full shadow border border-white">
+              ${idx + 1}
+            </div>
+          </div>
+        `;
+
+        const bookingBtn = acc.booking_url
+          ? `<a href="${acc.booking_url}" target="_blank" rel="noopener noreferrer" style="display:block; margin-top:8px; padding:6px 10px; background:#0d9488; color:#ffffff; font-weight:bold; font-size:11px; text-align:center; border-radius:8px; text-decoration:none;">Otevřít na Booking.com ↗</a>`
+          : '';
+
+        const popup = new maplibregl.Popup({ offset: 18 }).setHTML(`
+          <div style="font-family: inherit; font-size: 12px; padding: 2px; line-height: 1.4;">
+            <div style="color: #0d9488; font-size: 10px; font-weight: bold; text-transform: uppercase;">
+              🏨 Ubytování • ${dayLabel}
+            </div>
+            <div style="font-weight: bold; font-size: 13px; color: #111827; margin-top: 2px;">
+              ${acc.hotel_name}
+            </div>
+            ${acc.location ? `<div style="color: #6b7280; font-size: 11px; margin-top: 2px;">📍 ${acc.location}</div>` : ''}
+            ${acc.room_type ? `<div style="color: #374151; font-size: 11px; margin-top: 2px;">🛏️ ${acc.room_type}</div>` : ''}
+            ${acc.price_total ? `<div style="font-weight: bold; color: #047857; margin-top: 4px;">$${acc.price_total} ${acc.price_currency || 'USD'} / noc</div>` : ''}
+            ${acc.cancellation_policy ? `<div style="color: #4b5563; font-size: 10px; margin-top: 2px;">🛡️ ${acc.cancellation_policy}</div>` : ''}
+            ${bookingBtn}
+          </div>
+        `);
+
+        const marker = new maplibregl.Marker({ element: accEl })
+          .setLngLat([coords.lng, coords.lat])
+          .setPopup(popup)
+          .addTo(mapRef.current!);
+
+        markersRef.current.push(marker);
+      });
+    }
+
     // Render tips from Wishlist if enabled
     if (showTips && tips.length > 0) {
       tips.forEach((tip) => {
@@ -189,7 +289,12 @@ export const MapView: React.FC<MapViewProps> = ({
     }
 
     // Fit map bounds to show all markers
-    if (coordinates.length > 0 || (showTips && tips.some((t) => t.lat && t.lng))) {
+    const hasMarkers =
+      coordinates.length > 0 ||
+      (showAccommodations && filteredAccommodations.length > 0) ||
+      (showTips && tips.some((t) => t.lat && t.lng));
+
+    if (hasMarkers && !bounds.isEmpty()) {
       map.fitBounds(bounds, {
         padding: { top: 70, bottom: 90, left: 40, right: 40 },
         maxZoom: 14,
@@ -205,7 +310,16 @@ export const MapView: React.FC<MapViewProps> = ({
     if (map.isStyleLoaded()) {
       drawRouteLine(map, coordinates);
     }
-  }, [filteredPois, onSelectPoi, isDarkMode, showTips, tips]);
+  }, [
+    filteredPois,
+    filteredAccommodations,
+    showAccommodations,
+    onSelectPoi,
+    isDarkMode,
+    showTips,
+    tips,
+    selectedCategory,
+  ]);
 
   function drawRouteLine(map: maplibregl.Map, coords: [number, number][]) {
     if (coords.length < 2) return;
@@ -232,7 +346,7 @@ export const MapView: React.FC<MapViewProps> = ({
           data: geojsonData,
         });
 
-        // Route Casing (dark border for contrast)
+        // Casing (outer border)
         map.addLayer({
           id: layerCasingId,
           type: 'line',
@@ -242,13 +356,13 @@ export const MapView: React.FC<MapViewProps> = ({
             'line-cap': 'round',
           },
           paint: {
-            'line-color': isDarkMode ? '#071B20' : '#102A30',
-            'line-width': 7,
-            'line-opacity': 0.8,
+            'line-color': isDarkMode ? '#1e293b' : '#ffffff',
+            'line-width': 6,
+            'line-opacity': 0.9,
           },
         });
 
-        // Inner Route Line
+        // Inner line (brand coral)
         map.addLayer({
           id: layerInnerId,
           type: 'line',
@@ -258,40 +372,25 @@ export const MapView: React.FC<MapViewProps> = ({
             'line-cap': 'round',
           },
           paint: {
-            'line-color': isDarkMode ? '#55C6CE' : '#006D77',
-            'line-width': 4,
+            'line-color': '#d97706',
+            'line-width': 3.5,
+            'line-dasharray': [1.5, 1.5],
           },
         });
       }
-    } catch (e) {
-      console.warn('MapLibre drawRouteLine notice:', e);
+    } catch (err) {
+      console.warn('Mapbox polyline render warn:', err);
     }
   }
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] overflow-hidden">
-      {/* Map Container */}
+    <div className="relative w-full h-[calc(100vh-112px)] overflow-hidden">
+      {/* MapLibre Canvas */}
       <div ref={mapContainerRef} className="w-full h-full" />
 
-      {/* Floating Filter Pills on Top of Map */}
-      <div className="absolute top-3 left-3 right-14 z-20 flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar pointer-events-auto">
-        {/* Day / Whole Route Filter */}
-        {days.length > 0 && onSelectDayId && (
-          <select
-            value={selectedDayId || ''}
-            onChange={(e) => onSelectDayId(e.target.value ? e.target.value : null)}
-            className="text-xs font-bold px-3 py-1.5 rounded-full shadow-md transition-all flex-shrink-0 bg-white/95 dark:bg-stone-800 text-teal-800 dark:text-teal-300 border border-teal-300 dark:border-teal-700 outline-none cursor-pointer"
-          >
-            <option value="">🗺️ Celá trasa ({days.length} dní)</option>
-            {days.map((d) => (
-              <option key={d.id} value={d.id}>
-                Den {d.day_number}: {d.title}
-              </option>
-            ))}
-          </select>
-        )}
-
-        {/* TOP Filter */}
+      {/* Floating Filter Pills Bar */}
+      <div className="absolute top-4 left-4 right-4 z-10 flex items-center gap-2 overflow-x-auto py-1 scrollbar-none pointer-events-auto">
+        {/* TOP Only Filter */}
         <button
           onClick={onToggleOnlyTop}
           className={`flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full shadow-md transition-all flex-shrink-0 active:scale-95 ${
@@ -303,6 +402,20 @@ export const MapView: React.FC<MapViewProps> = ({
         >
           <Star className={`w-3.5 h-3.5 ${onlyTop ? 'fill-white text-white' : 'text-outdoor-top fill-outdoor-top'}`} />
           <span>★ TOP</span>
+        </button>
+
+        {/* Accommodations / Hotels Filter Toggle */}
+        <button
+          onClick={() => setShowAccommodations(!showAccommodations)}
+          className={`flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full shadow-md transition-all flex-shrink-0 active:scale-95 ${
+            showAccommodations
+              ? 'bg-teal-600 text-white ring-2 ring-white dark:ring-stone-800'
+              : 'bg-white/95 dark:bg-outdoor-dark-card/95 text-outdoor-text dark:text-stone-200 border border-stone-200 dark:border-stone-700 hover:bg-stone-50'
+          }`}
+          aria-label="Zobrazit hotely a ubytování na mapě"
+        >
+          <Bed className={`w-3.5 h-3.5 ${showAccommodations ? 'fill-white text-white' : 'text-teal-600'}`} />
+          <span>🏨 Hotely ({filteredAccommodations.length})</span>
         </button>
 
         {/* Tips Filter Toggle */}

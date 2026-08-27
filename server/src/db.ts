@@ -171,6 +171,8 @@ export function initDatabase() {
       day_id TEXT,
       hotel_name TEXT NOT NULL,
       location TEXT,
+      lat REAL,
+      lng REAL,
       booking_url TEXT,
       price_total REAL DEFAULT 0,
       price_single REAL DEFAULT 0,
@@ -186,6 +188,31 @@ export function initDatabase() {
       updated_at TEXT NOT NULL,
       FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE,
       FOREIGN KEY (day_id) REFERENCES days(id) ON DELETE SET NULL
+    );
+  `);
+
+  // Bookings / Vouchers / Tickets table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS bookings (
+      id TEXT PRIMARY KEY,
+      trip_id TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'other',
+      title TEXT NOT NULL,
+      provider TEXT,
+      confirmation_number TEXT,
+      booking_date TEXT,
+      start_datetime TEXT,
+      end_datetime TEXT,
+      price REAL DEFAULT 0,
+      currency TEXT DEFAULT 'USD',
+      status TEXT DEFAULT 'confirmed',
+      contact_phone TEXT,
+      contact_email TEXT,
+      document_url TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE
     );
   `);
 
@@ -294,11 +321,38 @@ function runMigrations() {
     "ALTER TABLE pois ADD COLUMN cost_currency TEXT DEFAULT 'USD';",
     "ALTER TABLE pois ADD COLUMN cost_category TEXT DEFAULT 'activities';",
     "ALTER TABLE pois ADD COLUMN data_origin TEXT DEFAULT 'user';",
+
+    'ALTER TABLE accommodations ADD COLUMN lat REAL;',
+    'ALTER TABLE accommodations ADD COLUMN lng REAL;',
   ];
 
   for (const sql of migrations) {
     try {
       db.exec(sql);
+    } catch {}
+  }
+
+  // Backfill accommodation GPS coordinates based on known location keywords
+  const locationCoords: Record<string, [number, number]> = {
+    'negombo': [7.2089, 79.8358],
+    'habarana': [8.0336, 80.7516],
+    'kandy': [7.2906, 80.6337],
+    'nuwara eliya': [6.9697, 80.7674],
+    'ella': [6.8667, 81.0466],
+    'tissamaharama': [6.2778, 81.2861],
+    'yala': [6.2778, 81.2861],
+    'mirissa': [5.9482, 80.4568],
+    'katunayake': [7.1650, 79.8880],
+    'colombo': [7.1650, 79.8880],
+  };
+
+  for (const [loc, [lat, lng]] of Object.entries(locationCoords)) {
+    try {
+      db.prepare(`
+        UPDATE accommodations
+        SET lat = ?, lng = ?
+        WHERE (lat IS NULL OR lng IS NULL) AND LOWER(location) LIKE ?
+      `).run(lat, lng, `%${loc}%`);
     } catch {}
   }
 }
@@ -321,6 +375,104 @@ function seedDemoData() {
   if (!checkTrip) {
     seedSriLanka2026Trip(user.id);
   }
+
+  // Seed demo bookings if empty
+  try {
+    const bookingsCount = (db.prepare('SELECT COUNT(*) as c FROM bookings WHERE trip_id = ?').get('trip_srilanka_2026') as any)?.c || 0;
+    if (bookingsCount === 0) {
+      const insertBooking = db.prepare(`
+        INSERT INTO bookings (
+          id, trip_id, type, title, provider, confirmation_number, booking_date,
+          price, currency, status, contact_phone, contact_email, notes, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, ?, ?)
+      `);
+
+      insertBooking.run(
+        'bkg_1',
+        'trip_srilanka_2026',
+        'transport',
+        'Soukromé auto s anglicky mluvícím řidičem (15 dní)',
+        'Lanka Travel Drivers Co.',
+        'LTD-2026-SRI-091',
+        '2026-11-15',
+        855,
+        'confirmed',
+        '+94 77 123 4567',
+        'driver@lankatravel.lk',
+        'Zahrnuje: auto, řidiče, palivo, mýtné, ubytování i stravu řidiče a převoz zavazadel.',
+        now,
+        now
+      );
+
+      insertBooking.run(
+        'bkg_2',
+        'trip_srilanka_2026',
+        'train',
+        'Scénický horský vlak: Kandy → Ella (1. třída vyhlídkový vůz)',
+        'Sri Lanka Railways',
+        'SLR-2027-EX-408',
+        '2026-12-01',
+        45,
+        'confirmed',
+        '+94 11 242 1281',
+        'reservations@railway.gov.lk',
+        'Rezervovaná sedadla v 1. třídě vyhlídkového vagónu Observation Saloon.',
+        now,
+        now
+      );
+
+      insertBooking.run(
+        'bkg_3',
+        'trip_srilanka_2026',
+        'flight',
+        'Zpáteční letenky Praha (PRG) ⇄ Colombo (CMB)',
+        'Qatar Airways',
+        'QR-CEZ-8942',
+        '2026-10-05',
+        2400,
+        'confirmed',
+        '+420 222 123 456',
+        'support@qatarairways.com',
+        'Odlet 26. 12. 2026 z PRG, návrat 10. 1. 2027. Zavazadla 30 kg / osoba v ceně.',
+        now,
+        now
+      );
+
+      insertBooking.run(
+        'bkg_4',
+        'trip_srilanka_2026',
+        'activity',
+        'Privátní ranní safari džíp v NP Yala s licencovaným stopařem',
+        'Yala Wild Safaris',
+        'YWS-7712',
+        '2026-12-10',
+        75,
+        'confirmed',
+        '+94 71 998 8776',
+        'safari@yalawild.lk',
+        'Odjezd z hotelu v 05:30, otevřený safari džíp 4x4 se sledováním levhartů a slonů.',
+        now,
+        now
+      );
+
+      insertBooking.run(
+        'bkg_5',
+        'trip_srilanka_2026',
+        'visa',
+        'Turistická víza ETA Srí Lanka (3x dospělý)',
+        'Department of Immigration & Emigration',
+        'ETA-LK-771239',
+        '2026-12-15',
+        150,
+        'confirmed',
+        null,
+        'eta@immigration.gov.lk',
+        'Schválená turistická víza s platností na 30 dní po vstupu do země.',
+        now,
+        now
+      );
+    }
+  } catch {}
 
   // Seed demo tips if empty
   const tipsCount = (db.prepare('SELECT COUNT(*) as c FROM tips WHERE user_id = ?').get(user.id) as any).c;

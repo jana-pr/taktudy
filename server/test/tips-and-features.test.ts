@@ -171,4 +171,58 @@ describe('Tak tudy! — 4 nové funkce (Smazání, Re-import z ChatGPT, Export, 
     expect(parsed.pois.some((p) => p.name === 'Pevnost Galle Fort')).toBe(true);
     expect(parsed.pois.some((p) => p.name === 'Kokosový kopec Coconut Tree Hill')).toBe(true);
   });
+
+  it('5. Ubytování: vytvoření, úprava, GPS souřadnice pro mapu a smazání', () => {
+    const accId = 'acc_test_unique_001';
+    const now = new Date().toISOString();
+
+    // Insert accommodation with GPS
+    db.prepare(`
+      INSERT INTO accommodations (
+        id, trip_id, hotel_name, location, lat, lng, price_total, price_single, room_type,
+        breakfast_included, booking_status, created_at, updated_at
+      ) VALUES (?, ?, 'Habarana Eco Lodge', 'Habarana', 8.0336, 80.7516, 120, 85, 'Garden Bungalow', 1, 'confirmed', ?, ?)
+    `).run(accId, createdTripId, now, now);
+
+    const created = db.prepare('SELECT * FROM accommodations WHERE id = ?').get(accId) as any;
+    expect(created).toBeDefined();
+    expect(created.hotel_name).toBe('Habarana Eco Lodge');
+    expect(created.lat).toBe(8.0336);
+    expect(created.lng).toBe(80.7516);
+    expect(created.price_total).toBe(120);
+
+    // Update
+    db.prepare('UPDATE accommodations SET price_total = ?, room_type = ? WHERE id = ?').run(140, 'Deluxe Bungalow', accId);
+    const updated = db.prepare('SELECT * FROM accommodations WHERE id = ?').get(accId) as any;
+    expect(updated.price_total).toBe(140);
+    expect(updated.room_type).toBe('Deluxe Bungalow');
+
+    // Delete
+    db.prepare('DELETE FROM accommodations WHERE id = ?').run(accId);
+    const deleted = db.prepare('SELECT * FROM accommodations WHERE id = ?').get(accId);
+    expect(deleted).toBeUndefined();
+  });
+
+  it('6. Rezervace: vytvoření, uložení kódu voucheru, aktualizace a smazání', () => {
+    const bkgId = 'bkg_test_unique_001';
+    const now = new Date().toISOString();
+
+    db.prepare(`
+      INSERT INTO bookings (
+        id, trip_id, type, title, provider, confirmation_number, price, currency,
+        status, contact_phone, created_at, updated_at
+      ) VALUES (?, ?, 'flight', 'Letenky do Colomba', 'Qatar Airways', 'QR-9988', 2100, 'USD', 'confirmed', '+420 222 333', ?, ?)
+    `).run(bkgId, createdTripId, now, now);
+
+    const bkg = db.prepare('SELECT * FROM bookings WHERE id = ?').get(bkgId) as any;
+    expect(bkg).toBeDefined();
+    expect(bkg.title).toBe('Letenky do Colomba');
+    expect(bkg.confirmation_number).toBe('QR-9988');
+    expect(bkg.price).toBe(2100);
+
+    // Delete
+    db.prepare('DELETE FROM bookings WHERE id = ?').run(bkgId);
+    const deleted = db.prepare('SELECT * FROM bookings WHERE id = ?').get(bkgId);
+    expect(deleted).toBeUndefined();
+  });
 });

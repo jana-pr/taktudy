@@ -109,6 +109,10 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
       .prepare('SELECT * FROM transport_services WHERE trip_id = ? ORDER BY created_at ASC')
       .all(id);
 
+    const bookings = db
+      .prepare('SELECT * FROM bookings WHERE trip_id = ? ORDER BY created_at ASC')
+      .all(id);
+
     return {
       ...trip,
       is_deleted: Boolean(trip.is_deleted),
@@ -119,6 +123,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
       pois,
       accommodations,
       transportServices,
+      bookings,
     };
   });
 

@@ -1,4 +1,4 @@
-import { FullTrip, POI, Trip, Category, SyncMutation, Tip } from '../types';
+import { FullTrip, POI, Trip, Category, SyncMutation, Tip, Accommodation, Booking } from '../types';
 import { offlineDb } from '../offline/db';
 
 const API_BASE = '/api';
@@ -220,6 +220,56 @@ export const tipsApi = {
     return request(`/tips/${id}/promote-to-poi`, {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  },
+};
+
+// Accommodations API
+export const accommodationsApi = {
+  create: async (tripId: string, data: Partial<Accommodation>): Promise<Accommodation> => {
+    return request<Accommodation>(`/trips/${tripId}/accommodations`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (tripId: string, id: string, data: Partial<Accommodation>): Promise<Accommodation> => {
+    return request<Accommodation>(`/trips/${tripId}/accommodations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (tripId: string, id: string): Promise<any> => {
+    return request(`/trips/${tripId}/accommodations/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// Bookings API
+export const bookingsApi = {
+  getAll: async (tripId: string): Promise<Booking[]> => {
+    return request<Booking[]>(`/trips/${tripId}/bookings`);
+  },
+
+  create: async (tripId: string, data: Partial<Booking>): Promise<Booking> => {
+    return request<Booking>(`/trips/${tripId}/bookings`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (tripId: string, id: string, data: Partial<Booking>): Promise<Booking> => {
+    return request<Booking>(`/trips/${tripId}/bookings/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (tripId: string, id: string): Promise<any> => {
+    return request(`/trips/${tripId}/bookings/${id}`, {
+      method: 'DELETE',
     });
   },
 };

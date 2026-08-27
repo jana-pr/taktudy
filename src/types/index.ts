@@ -106,6 +106,8 @@ export interface Accommodation {
   day_id?: string | null;
   hotel_name: string;
   location?: string | null;
+  lat?: number | null;
+  lng?: number | null;
   booking_url?: string | null;
   price_total: number;
   price_single?: number;
@@ -116,6 +118,27 @@ export interface Accommodation {
   cancellation_policy?: string | null;
   booking_status: 'confirmed' | 'pending' | 'reserved' | 'optional';
   booking_reference?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Booking {
+  id: string;
+  trip_id: string;
+  type: 'transport' | 'flight' | 'train' | 'activity' | 'insurance' | 'visa' | 'accommodation' | 'other';
+  title: string;
+  provider?: string | null;
+  confirmation_number?: string | null;
+  booking_date?: string | null;
+  start_datetime?: string | null;
+  end_datetime?: string | null;
+  price?: number;
+  currency?: string;
+  status?: 'confirmed' | 'pending' | 'cancelled';
+  contact_phone?: string | null;
+  contact_email?: string | null;
+  document_url?: string | null;
   notes?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -164,6 +187,7 @@ export interface FullTrip extends Trip {
   pois: POI[];
   accommodations?: Accommodation[];
   transportServices?: TransportService[];
+  bookings?: Booking[];
   isReadOnly?: boolean;
 }
 

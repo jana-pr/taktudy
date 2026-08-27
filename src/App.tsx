@@ -570,6 +570,7 @@ export function App() {
                 pois={activeTrip.pois || []}
                 categories={categories}
                 days={activeTrip.days || []}
+                accommodations={activeTrip.accommodations || []}
                 tips={tips}
                 showTips={showTipsOnMap}
                 onToggleShowTips={() => setShowTipsOnMap(!showTipsOnMap)}
@@ -597,7 +598,10 @@ export function App() {
 
             {activeTab === 'bookings' && (
               <div className="p-4 sm:p-6">
-                <BookingsView trip={activeTrip} />
+                <BookingsView
+                  trip={activeTrip}
+                  onTripUpdated={refreshActiveTrip}
+                />
               </div>
             )}
 
