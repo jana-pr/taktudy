@@ -3,16 +3,22 @@ import { authApi } from '../api/client';
 import { Compass, Lock, Mail, User, AlertCircle, ArrowRight } from 'lucide-react';
 
 interface AuthModalProps {
-  onSuccess: () => void;
+  onSuccess?: () => void;
+  onAuthSuccess?: () => void;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, onAuthSuccess }) => {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const triggerSuccess = () => {
+    if (onSuccess) onSuccess();
+    if (onAuthSuccess) onAuthSuccess();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +31,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       } else {
         await authApi.login(email.trim(), password);
       }
-      onSuccess();
+      triggerSuccess();
     } catch (err: any) {
       setError(err.message || 'Nepodařilo se přihlásit.');
     } finally {
@@ -38,7 +44,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     setError(null);
     try {
       await authApi.login('demo@taktudy.app', 'heslo123');
-      onSuccess();
+      triggerSuccess();
     } catch (err: any) {
       setError(err.message || 'Chyba přihlášení k demo účtu.');
     } finally {

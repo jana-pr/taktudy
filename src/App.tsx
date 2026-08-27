@@ -195,6 +195,10 @@ export function App() {
   if (!isAuthenticated) {
     return (
       <AuthModal
+        onSuccess={() => {
+          setIsAuthenticated(true);
+          loadData();
+        }}
         onAuthSuccess={() => {
           setIsAuthenticated(true);
           loadData();
