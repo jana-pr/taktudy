@@ -1,36 +1,37 @@
 @echo off
 chcp 65001 > nul
+title Tak tudy! - Nahrani na GitHub
 echo ========================================================
-echo   Tak tudy! - Nahrání na GitHub
+echo   Tak tudy! - Nahravani na GitHub: jana-pr/taktudy
 echo ========================================================
 echo.
-set /p REPO_URL="Vložte URL vašeho GitHub repozitáře (např. https://github.com/vase-jmeno/taktudy.git): "
 
-if "%REPO_URL%"=="" (
-    echo [CHYBA] Nebyla zadána žádná URL adresa.
-    pause
-    exit /b
-)
+set REPO_URL=https://github.com/jana-pr/taktudy.git
 
-echo.
-echo Připojuji vzdálený repozitář...
+echo 1. Nastavuji adresu repozitare: %REPO_URL%
 "C:\Users\prosk\AppData\Local\MinGit\cmd\git.exe" remote remove origin 2>nul
 "C:\Users\prosk\AppData\Local\MinGit\cmd\git.exe" remote add origin %REPO_URL%
 "C:\Users\prosk\AppData\Local\MinGit\cmd\git.exe" branch -M main
 
 echo.
-echo Odesílám kód na GitHub...
+echo 2. Odesilam kod na GitHub...
+echo    (Pokud se otevre male prihlasovaci okno nebo prohlizec,
+echo     staci kliknout na 'Sign in with your browser' a potvrdit).
+echo.
+
 "C:\Users\prosk\AppData\Local\MinGit\cmd\git.exe" push -u origin main
 
 if %ERRORLEVEL% EQU 0 (
     echo.
     echo ========================================================
-    echo   ÚSPĚCH! Kód byl úspěšně nahrán na GitHub.
-    echo   Nyní můžete přejít na https://render.com a spustit web.
+    echo   HOTOVO! Kod byl uspesne nahran na GitHub!
+    echo   Nyni muzete toto okno zavrit.
     echo ========================================================
 ) else (
     echo.
-    echo [UPOZORNĚNÍ] Pokud se zobrazila výzva k přihlášení do GitHubu, dokončete přihlášení v okně prohlížeče.
+    echo ========================================================
+    echo   Nahravani se nezdarilo nebo bylo preruseno.
+    echo ========================================================
 )
 echo.
 pause
