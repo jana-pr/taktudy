@@ -384,12 +384,12 @@ export const MapView: React.FC<MapViewProps> = ({
   }
 
   return (
-    <div className="relative w-full h-[calc(100vh-112px)] overflow-hidden">
+    <div className="relative w-full max-w-full h-[calc(100vh-104px)] sm:h-[calc(100vh-112px)] overflow-hidden">
       {/* MapLibre Canvas */}
       <div ref={mapContainerRef} className="w-full h-full" />
 
       {/* Floating Filter Pills Bar */}
-      <div className="absolute top-4 left-4 right-4 z-10 flex items-center gap-2 overflow-x-auto py-1 scrollbar-none pointer-events-auto">
+      <div className="absolute top-2.5 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-10 flex items-center gap-1.5 sm:gap-2 overflow-x-auto py-1 no-scrollbar pointer-events-auto max-w-[calc(100vw-1rem)]">
         {/* TOP Only Filter */}
         <button
           onClick={onToggleOnlyTop}

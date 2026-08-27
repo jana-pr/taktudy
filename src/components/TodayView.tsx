@@ -33,9 +33,9 @@ export const TodayView: React.FC<TodayViewProps> = ({
   const otherPois = todayPois.filter((p) => p.id !== nextCriticalPoi?.id);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 pb-24 space-y-5">
+    <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-24 space-y-4 sm:space-y-5 w-full max-w-full overflow-x-hidden">
       {/* Context Card */}
-      <div className="bg-gradient-to-br from-outdoor-teal-dark to-outdoor-teal text-white rounded-3xl p-6 shadow-md relative overflow-hidden">
+      <div className="bg-gradient-to-br from-outdoor-teal-dark to-outdoor-teal text-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-md relative overflow-hidden">
         <div className="relative z-10">
           <div className="flex items-center justify-between">
             <span className="bg-white/20 backdrop-blur text-white text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider">

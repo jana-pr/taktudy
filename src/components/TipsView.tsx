@@ -149,7 +149,7 @@ export const TipsView: React.FC<TipsViewProps> = ({
   });
 
   return (
-    <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6 pb-24 animate-fade-in">
+    <div className="max-w-5xl mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 pb-24 w-full max-w-full overflow-x-hidden animate-fade-in">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-20 right-4 z-50 p-3.5 bg-gray-900 text-white rounded-2xl shadow-xl text-xs font-bold flex items-center gap-2 animate-slide-up">
@@ -159,7 +159,7 @@ export const TipsView: React.FC<TipsViewProps> = ({
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-amber-500/10 via-teal-500/10 to-amber-500/5 p-6 rounded-3xl border border-amber-200/50 dark:border-amber-900/30 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-gradient-to-r from-amber-500/10 via-teal-500/10 to-amber-500/5 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-amber-200/50 dark:border-amber-900/30 shadow-xs">
         <div>
           <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs font-bold uppercase tracking-wider">
             <Lightbulb className="w-4 h-4" />

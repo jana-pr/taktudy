@@ -61,7 +61,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, onAuthSuccess }
             <Compass className="w-8 h-8 text-outdoor-coral" />
           </div>
           <h1 className="font-heading font-black text-2xl sm:text-3xl text-outdoor-teal-dark dark:text-white">
-            Tak tudy!
+            Tak Tudy!
           </h1>
           <p className="text-xs sm:text-sm text-outdoor-text-secondary dark:text-stone-300 font-medium">
             „Plánuji, abych měla svobodu.“

@@ -3,9 +3,24 @@
 @tailwind utilities;
 
 @layer base {
-  body {
+  html, body {
     @apply bg-outdoor-bg text-outdoor-text dark:bg-outdoor-dark-bg dark:text-outdoor-dark-text font-sans antialiased;
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+    width: 100%;
+    position: relative;
     -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    touch-action: pan-y pinch-zoom;
+  }
+
+  #root {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
 }
 

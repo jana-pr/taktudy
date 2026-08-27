@@ -127,9 +127,9 @@ export const PlanView: React.FC<PlanViewProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 pb-28 space-y-6">
+    <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-28 space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Header Banner */}
-      <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-700">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <span className="text-xs font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">

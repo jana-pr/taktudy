@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trip } from '../types';
-import { Compass, Moon, Sun, Share2, CheckCircle2, CloudUpload, HardDrive, LogOut, Plus, MapPin, QrCode, Trash2, Settings } from 'lucide-react';
+import { Compass, Moon, Sun, Share2, CheckCircle2, CloudUpload, HardDrive, LogOut, Plus, MapPin, QrCode, Settings } from 'lucide-react';
 
 interface NavbarProps {
   trips: Trip[];
@@ -28,39 +28,37 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNewTrip,
   onOpenQuickAdd,
   onOpenEditTrip,
-  onDeleteActiveTrip,
   onOpenShare,
   onOpenOfflineChecklist,
   onOpenQrModal,
   isDarkMode,
   onToggleDarkMode,
-  isOnline,
   pendingSyncCount,
   onTriggerSync,
   onLogout,
 }) => {
   return (
-    <header className="sticky top-0 z-40 bg-white/95 dark:bg-outdoor-dark-card/95 backdrop-blur border-b border-stone-200 dark:border-stone-800 transition-colors">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
-        {/* Logo & Motto */}
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-outdoor-teal-dark flex items-center justify-center text-white shadow-sm flex-shrink-0">
-            <Compass className="w-6 h-6 text-outdoor-coral" />
+    <header className="sticky top-0 z-40 w-full max-w-full overflow-hidden bg-white/95 dark:bg-outdoor-dark-card/95 backdrop-blur border-b border-stone-200 dark:border-stone-800 transition-colors">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-2">
+        {/* Logo & Name: "Tak Tudy!" */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-outdoor-teal-dark flex items-center justify-center text-white shadow-xs shrink-0">
+            <Compass className="w-5 h-5 sm:w-6 sm:h-6 text-outdoor-coral" />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="font-heading font-extrabold text-xl tracking-tight text-outdoor-teal-dark dark:text-white">
-                Tak tudy!
+            <div className="flex items-center gap-1">
+              <span className="font-heading font-extrabold text-base sm:text-xl tracking-tight text-outdoor-teal-dark dark:text-white truncate">
+                Tak Tudy!
               </span>
             </div>
-            <p className="text-xs text-outdoor-text-secondary dark:text-outdoor-dark-secondary truncate hidden sm:block font-medium">
+            <p className="text-[10px] sm:text-xs text-outdoor-text-secondary dark:text-outdoor-dark-secondary truncate hidden sm:block font-medium">
               „Plánuji, abych měla svobodu.“
             </p>
           </div>
         </div>
 
-        {/* Trip Selector Dropdown & New Trip Button */}
-        <div className="flex-1 max-w-xs mx-2 flex items-center gap-1.5">
+        {/* Trip Selector Dropdown & Settings */}
+        <div className="flex-1 min-w-0 max-w-[130px] xs:max-w-[160px] sm:max-w-xs mx-1 sm:mx-2 flex items-center gap-1 sm:gap-1.5">
           {trips.length > 0 && (
             <select
               value={activeTrip?.id || ''}
@@ -69,7 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 if (found) onSelectTrip(found);
               }}
               aria-label="Výběr aktivní cesty"
-              className="w-full text-xs sm:text-sm font-semibold bg-stone-100 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700 rounded-lg px-2.5 py-1.5 text-outdoor-text dark:text-outdoor-dark-text focus:outline-none focus:ring-2 focus:ring-outdoor-teal transition-colors truncate"
+              className="w-full text-xs font-semibold bg-stone-100 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700 rounded-lg px-2 py-1 sm:px-2.5 sm:py-1.5 text-outdoor-text dark:text-outdoor-dark-text focus:outline-none focus:ring-2 focus:ring-outdoor-teal transition-colors truncate"
             >
               {trips.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -84,10 +82,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={onOpenEditTrip}
               title={`Nastavení cesty "${activeTrip.title}"`}
-              className="p-1.5 rounded-lg text-stone-500 hover:text-teal-600 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors flex-shrink-0"
+              className="p-1 sm:p-1.5 rounded-lg text-stone-500 hover:text-teal-600 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors shrink-0"
               aria-label="Nastavení cesty"
             >
-              <Settings className="w-4 h-4" />
+              <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
           )}
 
@@ -95,46 +93,58 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={onOpenNewTrip}
             title="Vytvořit novou cestu"
-            className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 flex items-center gap-1 text-xs font-semibold transition-all flex-shrink-0"
+            className="p-1 sm:p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 flex items-center gap-1 text-xs font-semibold transition-all shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
             <span className="hidden md:inline">Nová cesta</span>
           </button>
 
-          {/* Primary Action: Add POI to active trip */}
+          {/* Add POI button (visible on tablet/desktop) */}
           {activeTrip && onOpenQuickAdd && (
             <button
               onClick={onOpenQuickAdd}
               title="Přidat nový bod zájmu do této cesty"
-              className="px-2.5 py-1.5 rounded-lg bg-outdoor-coral hover:bg-outdoor-coral/90 text-white flex items-center gap-1 text-xs font-bold transition-all shadow-sm active:scale-95 flex-shrink-0"
+              className="hidden sm:flex px-2.5 py-1.5 rounded-lg bg-outdoor-coral hover:bg-outdoor-coral/90 text-white items-center gap-1 text-xs font-bold transition-all shadow-xs active:scale-95 shrink-0"
             >
               <MapPin className="w-3.5 h-3.5" />
-              <span>+ Přidat bod</span>
+              <span>+ Bod</span>
             </button>
           )}
         </div>
 
-
         {/* Actions & Status */}
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
           {/* Sync / Offline badge */}
           {pendingSyncCount > 0 ? (
             <button
               onClick={onTriggerSync}
               title={`${pendingSyncCount} neodeslaných změn. Kliknutím synchronizovat.`}
-              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-pulse hover:bg-amber-500/20"
+              className="flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-2 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-pulse hover:bg-amber-500/20"
             >
-              <CloudUpload className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline">{pendingSyncCount}</span>
+              <CloudUpload className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span>{pendingSyncCount}</span>
             </button>
           ) : (
             <button
               onClick={onOpenOfflineChecklist}
               title="Cesta je připravena offline"
-              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-outdoor-positive/10 text-outdoor-positive dark:text-emerald-400 border border-outdoor-positive/20 hover:bg-outdoor-positive/20 transition-colors"
+              className="flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2.5 py-1 rounded-full bg-outdoor-positive/10 text-outdoor-positive dark:text-emerald-400 border border-outdoor-positive/20 hover:bg-outdoor-positive/20 transition-colors"
             >
-              <CheckCircle2 className="w-3.5 h-3.5" />
+              <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               <span className="hidden md:inline">Offline</span>
+            </button>
+          )}
+
+          {/* Mobile QR Code button (hidden on mobile phones) */}
+          {onOpenQrModal && (
+            <button
+              onClick={onOpenQrModal}
+              title="Otevřít v mobilu (zobrazit QR kód)"
+              className="hidden md:flex px-2.5 py-1.5 rounded-lg bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/50 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60 items-center gap-1.5 text-xs font-bold transition-all"
+              aria-label="QR kód pro mobil"
+            >
+              <QrCode className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              <span>Do mobilu</span>
             </button>
           )}
 
@@ -142,53 +152,40 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={onOpenOfflineChecklist}
             title="Ověřit offline připravenost"
-            className="p-2 rounded-lg text-outdoor-text-secondary hover:text-outdoor-teal dark:text-stone-300 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+            className="p-1.5 rounded-lg text-outdoor-text-secondary hover:text-outdoor-teal dark:text-stone-300 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
             aria-label="Offline checklist"
           >
-            <HardDrive className="w-5 h-5" />
+            <HardDrive className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
-
-          {/* Mobile QR Code button */}
-          {onOpenQrModal && (
-            <button
-              onClick={onOpenQrModal}
-              title="Otevřít v mobilu (zobrazit QR kód)"
-              className="px-2.5 py-1.5 rounded-lg bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/50 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60 flex items-center gap-1.5 text-xs font-bold transition-all shadow-2xs"
-              aria-label="QR kód pro mobil"
-            >
-              <QrCode className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-              <span className="hidden sm:inline">Do mobilu</span>
-            </button>
-          )}
 
           {/* Share button */}
           <button
             onClick={onOpenShare}
             title="Sdílet tuto cestu"
-            className="p-2 rounded-lg text-outdoor-text-secondary hover:text-outdoor-teal dark:text-stone-300 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+            className="p-1.5 rounded-lg text-outdoor-text-secondary hover:text-outdoor-teal dark:text-stone-300 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
             aria-label="Sdílet cestu"
           >
-            <Share2 className="w-5 h-5" />
+            <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
           {/* Dark mode toggle */}
           <button
             onClick={onToggleDarkMode}
             title={isDarkMode ? 'Přepnout na denní režim' : 'Přepnout na noční režim'}
-            className="p-2 rounded-lg text-outdoor-text-secondary hover:text-outdoor-teal dark:text-stone-300 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
+            className="p-1.5 rounded-lg text-outdoor-text-secondary hover:text-outdoor-teal dark:text-stone-300 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
             aria-label="Přepnout motiv vzhledu"
           >
-            {isDarkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-stone-600" />}
+            {isDarkMode ? <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" /> : <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-stone-600" />}
           </button>
 
           {/* Logout */}
           <button
             onClick={onLogout}
             title="Odhlásit se"
-            className="p-2 rounded-lg text-stone-400 hover:text-red-500 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors ml-1"
+            className="p-1.5 rounded-lg text-stone-400 hover:text-red-500 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
             aria-label="Odhlásit se"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </div>
       </div>

@@ -50,7 +50,7 @@ export const MobileAppModal: React.FC<MobileAppModalProps> = ({ isOpen, onClose 
                 Do mobilu
               </span>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                Mobilní aplikace Tak tudy!
+                Mobilní aplikace Tak Tudy!
               </h2>
             </div>
           </div>
@@ -68,7 +68,7 @@ export const MobileAppModal: React.FC<MobileAppModalProps> = ({ isOpen, onClose 
           {/* QR Code Container */}
           <div className="p-3 bg-white rounded-2xl shadow-md border-2 border-teal-100 dark:border-teal-900">
             {qrUrl ? (
-              <img src={qrUrl} alt="QR kód pro Tak tudy!" className="w-56 h-56 rounded-xl" />
+              <img src={qrUrl} alt="QR kód pro Tak Tudy!" className="w-56 h-56 rounded-xl" />
             ) : (
               <div className="w-56 h-56 flex items-center justify-center text-gray-400 text-xs">
                 Generuji QR kód...
@@ -118,7 +118,7 @@ export const MobileAppModal: React.FC<MobileAppModalProps> = ({ isOpen, onClose 
             <ol className="list-decimal list-inside space-y-1 text-teal-950/90 dark:text-teal-200 text-[11px]">
               <li>V <strong>Safari</strong> na iPhonu klepněte dole na tlačítko <strong>Sdílet</strong> (čtvereček se šipkou nahoru).</li>
               <li>Vyberte možnost <strong>„Přidat na plochu“</strong> (Add to Home Screen).</li>
-              <li>Aplikace se bude spouštět na celou obrazovku jako plnohodnotná nativní aplikace.</li>
+              <li>Aplikace se uloží s novou ikonou a názvem <strong>Tak Tudy!</strong> a bude se spouštět na celou obrazovku bez pruhů prohlížeče.</li>
             </ol>
           </div>
         </div>

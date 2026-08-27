@@ -206,24 +206,24 @@ export const BookingsView: React.FC<BookingsViewProps> = ({ trip, onTripUpdated 
   });
 
   return (
-    <div className="space-y-6 pb-24 max-w-5xl mx-auto animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 pb-24 max-w-5xl mx-auto w-full max-w-full overflow-x-hidden animate-fade-in">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
           <div className="flex items-center gap-2 text-teal-600 dark:text-teal-400 text-xs font-bold uppercase tracking-wider">
             <FileText className="w-4 h-4" /> Vouchery, jízdenky a smlouvy
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-0.5 sm:mt-1">
             Přehled všech rezervací cesty
           </h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+          <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             Všechna rezervační čísla, kontakty, letenky a smlouvy na jednom místě
           </p>
         </div>
 
         <button
           onClick={openAddModal}
-          className="px-4 py-2.5 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-1.5 shrink-0 self-start sm:self-auto"
+          className="w-full sm:w-auto px-4 py-2.5 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold rounded-xl sm:rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-1.5 shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>+ Přidat rezervaci / voucher</span>
@@ -231,7 +231,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({ trip, onTripUpdated 
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar w-full max-w-full">
         {[
           { id: 'all', label: `Všechny (${bookings.length})` },
           { id: 'transport', label: '🚗 Doprava' },

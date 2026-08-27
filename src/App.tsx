@@ -384,7 +384,7 @@ export function App() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col bg-stone-50 dark:bg-gray-900 transition-colors ${isDarkMode ? 'dark' : ''}`}>
+    <div className={`min-h-screen w-full max-w-full overflow-x-hidden flex flex-col bg-stone-50 dark:bg-gray-900 transition-colors ${isDarkMode ? 'dark' : ''}`}>
       {/* Top Navbar */}
       <Navbar
         trips={trips}
@@ -407,8 +407,8 @@ export function App() {
 
       {/* Sub-Header Tabs (Section 15: Přehled | Itinerář | Mapa | Ubytování | Rezervace | Rozpočet + Dnes) */}
       {activeTrip && (
-        <div className="sticky top-16 z-30 bg-white/95 dark:bg-gray-800/95 backdrop-blur border-b border-gray-200 dark:border-gray-700 shadow-xs">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-12 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+        <div className="sticky top-14 sm:top-16 z-30 w-full max-w-full overflow-hidden bg-white/95 dark:bg-gray-800/95 backdrop-blur border-b border-gray-200 dark:border-gray-700 shadow-xs">
+          <div className="max-w-7xl mx-auto px-2.5 sm:px-6 h-12 flex items-center justify-between gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar w-full">
             {/* 6 Main Tabs */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <button
@@ -527,9 +527,9 @@ export function App() {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full relative">
+      <main className="flex-1 w-full max-w-full overflow-x-hidden relative">
         {activeTrip ? (
-          <div className="w-full h-full">
+          <div className="w-full max-w-full overflow-x-hidden h-full">
             {activeTab === 'overview' && (
               <div className="p-4 sm:p-6">
                 <OverviewView

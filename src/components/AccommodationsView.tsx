@@ -183,34 +183,34 @@ export const AccommodationsView: React.FC<AccommodationsViewProps> = ({
   const perPersonCostTriple = Math.round(totalAccCost / 3);
 
   return (
-    <div className="space-y-6 pb-24 max-w-5xl mx-auto animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 pb-24 max-w-5xl mx-auto w-full max-w-full overflow-x-hidden animate-fade-in">
       {/* Header & Scenario Selector */}
-      <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div>
             <div className="flex items-center gap-2 text-teal-600 dark:text-teal-400 text-xs font-bold uppercase tracking-wider">
               <Bed className="w-4 h-4" /> Ubytování a hotely
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mt-0.5 sm:mt-1">
               Rozpis {accommodations.length} noclehů
             </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               Přepínejte mezi variantami pokojů nebo přidejte další ubytování
             </p>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             {/* Add Accommodation Button */}
             <button
               onClick={openAddModal}
-              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold rounded-2xl text-xs shadow-md transition-all flex items-center gap-1.5 shrink-0"
+              className="flex-1 sm:flex-initial px-3.5 py-2 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold rounded-xl sm:rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-1.5"
             >
               <Plus className="w-4 h-4" />
               <span>+ Přidat ubytování</span>
             </button>
 
             {/* Room Scenario Toggle */}
-            <div className="bg-gray-100 dark:bg-gray-700/60 p-1.5 rounded-2xl flex items-center gap-1 shrink-0">
+            <div className="bg-gray-100 dark:bg-gray-700/60 p-1 rounded-xl sm:rounded-2xl flex items-center gap-1 w-full sm:w-auto justify-between sm:justify-start">
               <button
                 onClick={() => handleScenarioChange('2+1')}
                 disabled={savingScenario}

@@ -133,9 +133,9 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) =
       : perPersonTotalTriple * 3;
 
   return (
-    <div className="space-y-6 pb-24 max-w-5xl mx-auto">
+    <div className="space-y-4 sm:space-y-6 pb-24 max-w-5xl mx-auto w-full max-w-full overflow-x-hidden">
       {/* Grand Total Hero Card */}
-      <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-gray-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl">
+      <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-gray-900 text-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-teal-200 text-xs font-bold uppercase tracking-wider">
