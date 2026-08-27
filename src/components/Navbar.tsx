@@ -17,6 +17,7 @@ import {
   Trash2,
   Sparkles,
   Download,
+  RefreshCw,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -36,6 +37,7 @@ interface NavbarProps {
   onToggleDarkMode: () => void;
   isOnline: boolean;
   pendingSyncCount: number;
+  isSyncing?: boolean;
   onTriggerSync: () => void;
   onLogout: () => void;
 }
@@ -56,6 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   isDarkMode,
   onToggleDarkMode,
   pendingSyncCount,
+  isSyncing,
   onTriggerSync,
   onLogout,
 }) => {
@@ -133,6 +136,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <div className="px-3.5 py-1.5 border-b border-stone-100 dark:border-stone-800 text-[10px] font-bold uppercase tracking-wider text-stone-400 truncate">
                       Správa cesty: <span className="text-stone-700 dark:text-stone-200">{activeTrip.title}</span>
                     </div>
+
+                    {/* 0. Synchronizovat s webem */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsManageOpen(false);
+                        onTriggerSync();
+                      }}
+                      className="w-full px-3.5 py-2.5 text-left bg-teal-50/70 dark:bg-teal-950/50 hover:bg-teal-100/80 dark:hover:bg-teal-900/60 text-teal-800 dark:text-teal-200 font-bold flex items-center gap-2.5 transition-colors border-b border-stone-100 dark:border-stone-800"
+                    >
+                      <RefreshCw className={`w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
+                      <div>
+                        <div className="font-bold flex items-center gap-1.5">
+                          <span>Synchronizovat s webem</span>
+                          {isSyncing && <span className="text-[10px] text-teal-600 animate-pulse">Probíhá...</span>}
+                        </div>
+                        <div className="text-[10px] text-stone-500 dark:text-stone-400 font-normal">Stáhnout změny z webu / odeslat data</div>
+                      </div>
+                    </button>
 
                     {/* 1. Nastavení cesty */}
                     {onOpenEditTrip && (
@@ -259,26 +281,28 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Actions & Status */}
         <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-          {/* Sync / Offline badge */}
-          {pendingSyncCount > 0 ? (
-            <button
-              onClick={onTriggerSync}
-              title={`${pendingSyncCount} neodeslaných změn. Kliknutím synchronizovat.`}
-              className="flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-2 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-pulse hover:bg-amber-500/20"
-            >
-              <CloudUpload className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span>{pendingSyncCount}</span>
-            </button>
-          ) : (
-            <button
-              onClick={onOpenOfflineChecklist}
-              title="Cesta je připravena offline"
-              className="flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2.5 py-1 rounded-full bg-outdoor-positive/10 text-outdoor-positive dark:text-emerald-400 border border-outdoor-positive/20 hover:bg-outdoor-positive/20 transition-colors"
-            >
-              <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden md:inline">Offline</span>
-            </button>
-          )}
+          {/* Sync status & Manual sync button */}
+          <button
+            onClick={onTriggerSync}
+            title={
+              isSyncing
+                ? 'Synchronizuji s webem...'
+                : pendingSyncCount > 0
+                ? `${pendingSyncCount} neodeslaných změn. Kliknutím synchronizovat s webem.`
+                : 'Data jsou aktuální. Kliknutím znovu synchronizovat s webem.'
+            }
+            className={`flex items-center gap-1 text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-1 rounded-full border transition-all active:scale-95 ${
+              isSyncing
+                ? 'bg-teal-500/20 text-teal-700 dark:text-teal-300 border-teal-500/40'
+                : pendingSyncCount > 0
+                ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 animate-pulse'
+                : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20 hover:bg-emerald-500/20'
+            }`}
+            aria-label="Synchronizovat s webem"
+          >
+            <RefreshCw className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${isSyncing ? 'animate-spin text-teal-600' : ''}`} />
+            <span>{isSyncing ? 'Sync...' : pendingSyncCount > 0 ? `${pendingSyncCount}` : 'Sync'}</span>
+          </button>
 
           {/* Mobile QR Code button (hidden on mobile phones) */}
           {onOpenQrModal && (

@@ -92,6 +92,8 @@ export function App() {
   });
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncToast, setSyncToast] = useState<string | null>(null);
 
   // Theme sync
   useEffect(() => {
@@ -104,23 +106,6 @@ export function App() {
     }
   }, [isDarkMode]);
 
-  // Online / Offline listener
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      triggerSync();
-    };
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
   // Update pending sync count
   const updatePendingCount = useCallback(async () => {
     const count = await offlineDb.outboxMutations.count();
@@ -131,17 +116,93 @@ export function App() {
     updatePendingCount();
   }, [updatePendingCount]);
 
-  // Trigger sync process
-  const triggerSync = async () => {
-    if (!navigator.onLine) return;
-    const res = await syncApi.processOutbox();
-    await updatePendingCount();
-    if (res.appliedCount > 0 && activeTrip) {
-      // Refresh current trip
-      const refreshed = await tripsApi.get(activeTrip.id);
-      setActiveTrip(refreshed);
+  // Full Bidirectional Synchronization: pushes outbox mutations and pulls fresh state from server
+  const triggerSync = useCallback(async (showFeedback = false) => {
+    if (!navigator.onLine) {
+      if (showFeedback) {
+        setSyncToast('Jste offline. Změny se synchronizují po připojení.');
+        setTimeout(() => setSyncToast(null), 3000);
+      }
+      return;
     }
-  };
+
+    try {
+      setIsSyncing(true);
+      // 1. Process any local outbox mutations to server
+      await syncApi.processOutbox();
+      await updatePendingCount();
+
+      // 2. Fetch fresh trips list from server
+      const tripsData = await tripsApi.list();
+      setTrips(tripsData);
+
+      // 3. Fetch fresh active trip
+      if (activeTrip) {
+        const refreshed = await tripsApi.get(activeTrip.id);
+        setActiveTrip(refreshed);
+      } else if (tripsData.length > 0) {
+        const defaultTrip = tripsData.find((t) => t.id === 'trip_srilanka_2026') || tripsData[0];
+        const full = await tripsApi.get(defaultTrip.id);
+        setActiveTrip(full);
+      }
+
+      // 4. Fetch fresh categories and tips
+      const [catsData, tipsData] = await Promise.all([
+        categoriesApi.list().catch(() => []),
+        tipsApi.getAll().catch(() => []),
+      ]);
+      setCategories(catsData);
+      setTips(tipsData);
+
+      if (showFeedback) {
+        setSyncToast('Aplikace byla úspěšně synchronizována s webem!');
+        setTimeout(() => setSyncToast(null), 3000);
+      }
+    } catch (err) {
+      console.error('Chyba při synchronizaci:', err);
+      if (showFeedback) {
+        setSyncToast('Synchronizace se nezdařila. Zkontrolujte připojení.');
+        setTimeout(() => setSyncToast(null), 3000);
+      }
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [activeTrip, updatePendingCount]);
+
+  // Online / Offline listener & Auto-sync when coming to foreground or waking up phone
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      triggerSync(false);
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    const handleForeground = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) {
+        triggerSync(false);
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    document.addEventListener('visibilitychange', handleForeground);
+    window.addEventListener('focus', handleForeground);
+
+    // Periodic live background sync every 20 seconds while active
+    const liveTimer = setInterval(() => {
+      if (document.visibilityState === 'visible' && navigator.onLine && !isSyncing) {
+        triggerSync(false);
+      }
+    }, 20000);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      document.removeEventListener('visibilitychange', handleForeground);
+      window.removeEventListener('focus', handleForeground);
+      clearInterval(liveTimer);
+    };
+  }, [triggerSync, isSyncing]);
 
   // Reload current active trip
   const refreshActiveTrip = async () => {
@@ -404,7 +465,8 @@ export function App() {
           onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
           isOnline={isOnline}
           pendingSyncCount={pendingSyncCount}
-          onTriggerSync={triggerSync}
+          isSyncing={isSyncing}
+          onTriggerSync={() => triggerSync(true)}
           onLogout={handleLogout}
         />
 
@@ -778,6 +840,14 @@ export function App() {
         onClose={() => setIsEditChatGptOpen(false)}
         onTripUpdated={refreshActiveTrip}
       />
+
+      {/* Floating Sync Toast Notification */}
+      {syncToast && (
+        <div className="fixed bottom-16 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-gray-900/95 dark:bg-gray-800/95 text-white rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2 animate-slide-up border border-teal-500/40 backdrop-blur">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{syncToast}</span>
+        </div>
+      )}
     </div>
   );
 }
