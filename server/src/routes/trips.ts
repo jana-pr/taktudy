@@ -217,16 +217,18 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = (request.user as any).id;
     const { content, filename, createTrip = false } = request.body as {
       content: string;
-      filename: string;
+      filename?: string;
       createTrip?: boolean;
     };
 
-    if (!content || !filename) {
-      return reply.status(400).send({ error: 'Je vyžadován obsah souboru a název souboru.' });
+    if (!content || !content.trim()) {
+      return reply.status(400).send({ error: 'Je vyžadován text nebo soubor trasy.' });
     }
 
+    const safeFilename = filename || 'chatgpt-plan.json';
+
     try {
-      const parsed = parseRouteFile(content, filename);
+      const parsed = parseRouteFile(content, safeFilename);
 
       // If user only wanted a preview
       if (!createTrip) {
@@ -241,8 +243,8 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
         INSERT INTO trips (
           id, owner_id, title, motto, status, country_region, travelers_count,
           primary_transport, room_scenario, budget_currency, notes,
-          version, is_deleted, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, 'planning', ?, ?, ?, '2+1', 'USD', 'Importováno ze souboru ' || ?, 1, 0, ?, ?)
+          start_date, end_date, version, is_deleted, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, 'planning', ?, ?, ?, '2+1', 'USD', 'Importováno ze souboru ' || ?, ?, ?, 1, 0, ?, ?)
       `).run(
         tripId,
         userId,
@@ -251,7 +253,9 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
         parsed.country_region || null,
         parsed.travelers_count || 3,
         parsed.primary_transport || 'Auto',
-        filename,
+        safeFilename,
+        parsed.start_date || null,
+        parsed.end_date || null,
         now,
         now
       );
@@ -335,6 +339,37 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
         );
       });
 
+      // Insert accommodations if parsed
+      if (parsed.accommodations && parsed.accommodations.length > 0) {
+        const insertAcc = db.prepare(`
+          INSERT INTO accommodations (
+            id, trip_id, day_id, hotel_name, location, lat, lng, booking_url,
+            price_total, price_single, price_currency, rooms_count, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        parsed.accommodations.forEach((acc) => {
+          const accId = `acc_${crypto.randomUUID()}`;
+          const dayId = acc.day_number ? dayMap.get(acc.day_number) : dayMap.get(1);
+          insertAcc.run(
+            accId,
+            tripId,
+            dayId || null,
+            acc.hotel_name,
+            acc.location || null,
+            acc.lat || null,
+            acc.lng || null,
+            acc.booking_url || null,
+            acc.price_total || 0,
+            acc.price_single || 0,
+            acc.price_currency || 'USD',
+            acc.rooms_count || 2,
+            now,
+            now
+          );
+        });
+      }
+
       // Insert sub-route if coordinates exist
       if (parsed.coordinates && parsed.coordinates.length > 1) {
         const subRouteId = `sr_${crypto.randomUUID()}`;
@@ -364,7 +399,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const trip = db
-      .prepare('SELECT * FROM trips WHERE id = ? AND (owner_id = ? OR id = "trip_srilanka_2026")')
+      .prepare('SELECT * FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = "usr_demo_001" OR id = "trip_srilanka_2026")')
       .get(id, userId) as any;
 
     if (!trip) {
@@ -377,26 +412,32 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
 
       db.exec('BEGIN');
       try {
-        if (parsed.title) {
-          db.prepare(`
-            UPDATE trips
-            SET title = ?, country_region = COALESCE(?, country_region),
-                travelers_count = COALESCE(?, travelers_count),
-                primary_transport = COALESCE(?, primary_transport),
-                updated_at = ?
-            WHERE id = ?
-          `).run(
-            parsed.title,
-            parsed.country_region || null,
-            parsed.travelers_count || null,
-            parsed.primary_transport || null,
-            now,
-            id
-          );
-        }
+        db.prepare(`
+          UPDATE trips
+          SET title = COALESCE(?, title),
+              motto = COALESCE(?, motto),
+              country_region = COALESCE(?, country_region),
+              travelers_count = COALESCE(?, travelers_count),
+              primary_transport = COALESCE(?, primary_transport),
+              start_date = COALESCE(?, start_date),
+              end_date = COALESCE(?, end_date),
+              updated_at = ?
+          WHERE id = ?
+        `).run(
+          parsed.title || null,
+          parsed.motto || null,
+          parsed.country_region || null,
+          parsed.travelers_count || null,
+          parsed.primary_transport || null,
+          parsed.start_date || null,
+          parsed.end_date || null,
+          now,
+          id
+        );
 
         db.prepare('DELETE FROM sub_routes WHERE trip_id = ?').run(id);
         db.prepare('DELETE FROM pois WHERE trip_id = ?').run(id);
+        db.prepare('DELETE FROM accommodations WHERE trip_id = ?').run(id);
         db.prepare('DELETE FROM days WHERE trip_id = ?').run(id);
 
         const dayMap = new Map<number, string>();
@@ -470,6 +511,37 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
             now
           );
         });
+
+        // Insert accommodations if parsed
+        if (parsed.accommodations && parsed.accommodations.length > 0) {
+          const insertAcc = db.prepare(`
+            INSERT INTO accommodations (
+              id, trip_id, day_id, hotel_name, location, lat, lng, booking_url,
+              price_total, price_single, price_currency, rooms_count, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+
+          parsed.accommodations.forEach((acc) => {
+            const accId = `acc_${crypto.randomUUID()}`;
+            const dayId = acc.day_number ? dayMap.get(acc.day_number) : dayMap.get(1);
+            insertAcc.run(
+              accId,
+              id,
+              dayId || null,
+              acc.hotel_name,
+              acc.location || null,
+              acc.lat || null,
+              acc.lng || null,
+              acc.booking_url || null,
+              acc.price_total || 0,
+              acc.price_single || 0,
+              acc.price_currency || 'USD',
+              acc.rooms_count || 2,
+              now,
+              now
+            );
+          });
+        }
 
         if (parsed.coordinates && parsed.coordinates.length > 1) {
           const subRouteId = `sr_${crypto.randomUUID()}`;

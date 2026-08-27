@@ -26,6 +26,19 @@ export interface ImportedDay {
   activities?: string;
 }
 
+export interface ImportedAccommodation {
+  day_number?: number;
+  hotel_name: string;
+  location?: string;
+  lat?: number;
+  lng?: number;
+  booking_url?: string;
+  price_total?: number;
+  price_single?: number;
+  price_currency?: string;
+  rooms_count?: number;
+}
+
 export interface ImportedTripResult {
   title: string;
   country_region?: string;
@@ -36,24 +49,81 @@ export interface ImportedTripResult {
   end_date?: string;
   days: ImportedDay[];
   pois: ImportedPoi[];
+  accommodations?: ImportedAccommodation[];
   coordinates: [number, number][]; // LineString [lng, lat]
 }
 
 /**
  * Clean and extract JSON string from possible markdown fences or conversational wrapper text.
+ * Safely preserves https:// and http:// URLs inside string literals!
  */
 function cleanJsonString(raw: string): string {
   let text = raw.trim();
 
-  // Strip markdown code fences anywhere in text
+  // 1. If text contains markdown code block with json/code, prefer inside block
+  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (codeBlockMatch && codeBlockMatch[1].trim().length > 0) {
+    const candidate = codeBlockMatch[1].trim();
+    if (candidate.startsWith('{') || candidate.startsWith('[')) {
+      text = candidate;
+    }
+  }
+
+  // Strip remaining markdown fences if any
   text = text.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
 
-  // Normalize smart quotes (common on iOS / Mac clipboard)
+  // Normalize smart quotes (common on iOS / iPhone / Mac clipboard)
   text = text
     .replace(/[\u201C\u201D\u201E\u201F\u00AB\u00BB]/g, '"')
     .replace(/[\u2018\u2019\u201A\u201B]/g, "'");
 
-  // Find opening brace or bracket
+  // Safe comment stripper that respects strings (preserves https://... and http://...)
+  function stripCommentsSafely(str: string): string {
+    let out = '';
+    let inString = false;
+    let quoteChar = '';
+    let isEscaped = false;
+
+    for (let i = 0; i < str.length; i++) {
+      const ch = str[i];
+      const next = str[i + 1];
+
+      if (inString) {
+        out += ch;
+        if (isEscaped) {
+          isEscaped = false;
+        } else if (ch === '\\') {
+          isEscaped = true;
+        } else if (ch === quoteChar) {
+          inString = false;
+        }
+      } else {
+        if (ch === '"' || ch === "'") {
+          inString = true;
+          quoteChar = ch;
+          out += ch;
+        } else if (ch === '/' && next === '/') {
+          while (i < str.length && str[i] !== '\n' && str[i] !== '\r') {
+            i++;
+          }
+          if (i < str.length) out += str[i];
+        } else if (ch === '/' && next === '*') {
+          i += 2;
+          while (i < str.length && !(str[i] === '*' && str[i + 1] === '/')) {
+            i++;
+          }
+          i++;
+        } else {
+          out += ch;
+        }
+      }
+    }
+    return out;
+  }
+
+  text = stripCommentsSafely(text);
+
+  // Find outermost { ... } or [ ... ]
   const firstBrace = text.indexOf('{');
   const firstBracket = text.indexOf('[');
   let startIdx = -1;
@@ -81,9 +151,6 @@ function cleanJsonString(raw: string): string {
       text = text.slice(startIdx, endIdx + 1);
     }
   }
-
-  // Remove single line comments // ...
-  text = text.replace(/\/\/[^\n\r]*/g, '');
 
   // Remove trailing commas before } or ]
   text = text.replace(/,(\s*[}\]])/g, '$1');
@@ -294,13 +361,26 @@ function parseKml(xml: string): ImportedTripResult {
   };
 }
 
+function parseRelaxedJson(str: string): any {
+  try {
+    return JSON.parse(str);
+  } catch (err: any) {
+    try {
+      const relaxed = str
+        // replace unquoted keys: { key: "val" } -> { "key": "val" }
+        .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
+        // replace single-quoted strings: 'val' -> "val"
+        .replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, '"$1"');
+      return JSON.parse(relaxed);
+    } catch {
+      throw new Error('Neplatný formát JSON. Zkontrolujte prosím, zda je text kompletní: ' + err.message);
+    }
+  }
+}
+
 function parseJson(jsonStr: string): ImportedTripResult {
   let rawData: any;
-  try {
-    rawData = JSON.parse(jsonStr);
-  } catch (e: any) {
-    throw new Error('Neplatný formát JSON. Zkontrolujte prosím, zda je text kompletní: ' + e.message);
-  }
+  rawData = parseRelaxedJson(jsonStr);
 
   // If top-level array, treat as array of days or POIs
   if (Array.isArray(rawData)) {
@@ -312,7 +392,16 @@ function parseJson(jsonStr: string): ImportedTripResult {
   }
 
   // Unwrap common wrapper keys: { itinerary: { ... } } or { trip: { ... } } or { plan: { ... } }
-  const data = rawData.itinerary || rawData.trip || rawData.plan || rawData.cesta || rawData;
+  const data =
+    rawData.itinerary ||
+    rawData.trip ||
+    rawData.plan ||
+    rawData.cesta ||
+    rawData.data ||
+    rawData.trasa ||
+    rawData.exportData ||
+    rawData.trip_plan ||
+    rawData;
 
   // GeoJSON FeatureCollection
   if (data.type === 'FeatureCollection' && Array.isArray(data.features)) {
@@ -484,6 +573,41 @@ function parseJson(jsonStr: string): ImportedTripResult {
       day_number: Number(p.day_number || p.day || p.den) || 1,
     };
   });
+  // Extract accommodations from data or overnight locations
+  const rawAccommodations: any[] = Array.isArray(data.accommodations)
+    ? [...data.accommodations]
+    : Array.isArray(data.ubytovani)
+    ? [...data.ubytovani]
+    : Array.isArray(data.hotels)
+    ? [...data.hotels]
+    : [];
+
+  rawDays.forEach((d: any, idx: number) => {
+    const dayNum = Number(d.day_number || d.day || d.den) || idx + 1;
+    const hotelName = d.hotel || d.overnight_location || d.nocleh || d.ubytovani;
+    if (hotelName && typeof hotelName === 'string' && hotelName.length > 2) {
+      if (!rawAccommodations.some((a) => (a.hotel_name || a.name || a.nazev) === hotelName)) {
+        rawAccommodations.push({
+          day_number: dayNum,
+          hotel_name: hotelName,
+          location: d.overnight_location || d.start_location,
+        });
+      }
+    }
+  });
+
+  const parsedAccommodations: ImportedAccommodation[] = rawAccommodations.map((a: any, idx: number) => ({
+    day_number: Number(a.day_number || a.day || a.den) || (idx % (parsedDays.length || 1)) + 1,
+    hotel_name: a.hotel_name || a.name || a.nazev || a.hotel || `Hotel ${idx + 1}`,
+    location: a.location || a.misto || a.adresa,
+    lat: typeof a.lat === 'number' ? a.lat : parseFloat(a.lat || a.latitude) || undefined,
+    lng: typeof a.lng === 'number' ? a.lng : parseFloat(a.lng || a.longitude) || undefined,
+    booking_url: a.booking_url || a.url || a.odkaz || a.link,
+    price_total: typeof a.price_total === 'number' ? a.price_total : parseFloat(a.price_total || a.price || a.cena) || 0,
+    price_single: typeof a.price_single === 'number' ? a.price_single : parseFloat(a.price_single) || 0,
+    price_currency: a.price_currency || a.currency || 'USD',
+    rooms_count: Number(a.rooms_count || a.rooms || a.pokoje) || 2,
+  }));
 
   return {
     title,
@@ -495,6 +619,7 @@ function parseJson(jsonStr: string): ImportedTripResult {
     end_date,
     days: parsedDays.length > 0 ? parsedDays : [{ day_number: 1, title: 'Den 1: Příjezd' }],
     pois: parsedPois,
+    accommodations: parsedAccommodations,
     coordinates: Array.isArray(data.coordinates) ? data.coordinates : [],
   };
 }

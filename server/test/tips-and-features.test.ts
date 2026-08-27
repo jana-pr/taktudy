@@ -225,4 +225,67 @@ describe('Tak tudy! — 4 nové funkce (Smazání, Re-import z ChatGPT, Export, 
     const deleted = db.prepare('SELECT * FROM bookings WHERE id = ?').get(bkgId);
     expect(deleted).toBeUndefined();
   });
+
+  it('7. Import a úprava cesty: Zkopírování JSONu jako text obsahující URL adresy (https://), komentáře a konverzační úvod z ChatGPT', () => {
+    const rawGptInput = `Dobrý den, tady je upravený plán vaší cesty po Srí Lance:
+\`\`\`json
+{
+  "title": "Srí Lanka Vánoce 2026 - Z ChatGPT",
+  "country_region": "Srí Lanka",
+  "motto": "Krásný okruh s ubytováním a zážitky",
+  "start_date": "2026-12-26",
+  "end_date": "2027-01-08",
+  "url": "https://www.booking.com/hotel/lk/cinnamon-grand.cs.html", // odkaz na ubytování
+  "days": [
+    {
+      "day_number": 1,
+      "title": "Den 1 - Přílet do Colomba",
+      "overnight_location": "Cinnamon Grand Colombo",
+      "pois": [
+        {
+          "name": "Letiště Bandaranaike CMB",
+          "lat": 7.1808,
+          "lng": 79.8841,
+          "category_id": "transport",
+          "source_url": "https://airport.lk/colombo-terminal",
+        }
+      ]
+    },
+    {
+      "day_number": 2,
+      "title": "Den 2 - Přesun do Dambully",
+      "overnight_location": "Heritance Kandalama",
+      "pois": [
+        {
+          "name": "Jeskynní chrám Dambulla",
+          "lat": 7.8567,
+          "lng": 80.6483,
+          "category_id": "monument",
+          "source_url": "https://maps.google.com/?q=7.8567,80.6483",
+        }
+      ]
+    }
+  ],
+  "accommodations": [
+    {
+      "hotel_name": "Cinnamon Grand Colombo",
+      "day_number": 1,
+      "booking_url": "https://booking.com/cinnamon",
+      "price_total": 130
+    }
+  ]
+}
+\`\`\`
+Doufám, že se vám nový itinerář bude líbit! Dejte vědět, pokud budete chtít cokoliv upravit.`;
+
+    const parsed = parseRouteFile(rawGptInput, 'chatgpt-plan.json');
+    expect(parsed.title).toBe('Srí Lanka Vánoce 2026 - Z ChatGPT');
+    expect(parsed.days.length).toBe(2);
+    expect(parsed.pois.length).toBe(2);
+    expect(parsed.pois[0].name).toBe('Letiště Bandaranaike CMB');
+    expect(parsed.pois[1].name).toBe('Jeskynní chrám Dambulla');
+    expect(parsed.accommodations).toBeDefined();
+    expect(parsed.accommodations!.length).toBeGreaterThanOrEqual(1);
+    expect(parsed.accommodations![0].hotel_name).toBe('Cinnamon Grand Colombo');
+  });
 });
