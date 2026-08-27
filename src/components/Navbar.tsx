@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trip } from '../types';
-import { Compass, Moon, Sun, Share2, CheckCircle2, CloudUpload, HardDrive, LogOut, Plus, MapPin } from 'lucide-react';
+import { Compass, Moon, Sun, Share2, CheckCircle2, CloudUpload, HardDrive, LogOut, Plus, MapPin, QrCode } from 'lucide-react';
 
 interface NavbarProps {
   trips: Trip[];
@@ -10,6 +10,7 @@ interface NavbarProps {
   onOpenQuickAdd?: () => void;
   onOpenShare: () => void;
   onOpenOfflineChecklist: () => void;
+  onOpenQrModal?: () => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   isOnline: boolean;
@@ -129,6 +130,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <HardDrive className="w-5 h-5" />
           </button>
+
+          {/* Mobile QR Code button */}
+          {onOpenQrModal && (
+            <button
+              onClick={onOpenQrModal}
+              title="Otevřít v mobilu (zobrazit QR kód)"
+              className="px-2.5 py-1.5 rounded-lg bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/50 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60 flex items-center gap-1.5 text-xs font-bold transition-all shadow-2xs"
+              aria-label="QR kód pro mobil"
+            >
+              <QrCode className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              <span className="hidden sm:inline">Do mobilu</span>
+            </button>
+          )}
 
           {/* Share button */}
           <button

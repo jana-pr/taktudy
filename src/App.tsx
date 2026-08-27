@@ -22,6 +22,7 @@ import { EditTripModal } from './components/EditTripModal';
 import { TripProposalModal } from './components/TripProposalModal';
 import { RouteOptimizationModal } from './components/RouteOptimizationModal';
 import { ImportRouteModal } from './components/ImportRouteModal';
+import { MobileAppModal } from './components/MobileAppModal';
 import { SharedTripView } from './components/SharedTripView';
 import { AuthModal } from './components/AuthModal';
 import {
@@ -74,6 +75,7 @@ export function App() {
   const [isAiProposeOpen, setIsAiProposeOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isOptimizeModalOpen, setIsOptimizeModalOpen] = useState(false);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [mapClickCoords, setMapClickCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Theme & Offline Status
@@ -355,6 +357,7 @@ export function App() {
         onOpenQuickAdd={() => setIsQuickAddOpen(true)}
         onOpenShare={() => setIsShareModalOpen(true)}
         onOpenOfflineChecklist={() => setIsOfflineModalOpen(true)}
+        onOpenQrModal={() => setIsQrModalOpen(true)}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
         isOnline={isOnline}
@@ -683,6 +686,12 @@ export function App() {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onTripImported={handleTripCreatedFromAiOrImport}
+      />
+
+      {/* Mobile App QR Code Modal */}
+      <MobileAppModal
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
       />
     </div>
   );
