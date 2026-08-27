@@ -385,146 +385,142 @@ export function App() {
 
   return (
     <div className={`min-h-screen w-full max-w-full overflow-x-hidden flex flex-col bg-stone-50 dark:bg-gray-900 transition-colors ${isDarkMode ? 'dark' : ''}`}>
-      {/* Top Navbar */}
-      <Navbar
-        trips={trips}
-        activeTrip={activeTrip}
-        onSelectTrip={handleSelectTrip}
-        onOpenNewTrip={() => setIsNewTripModalOpen(true)}
-        onOpenQuickAdd={() => setIsQuickAddOpen(true)}
-        onOpenEditTrip={() => setIsEditTripModalOpen(true)}
-        onDeleteActiveTrip={() => handleDeleteTrip()}
-        onOpenShare={() => setIsShareModalOpen(true)}
-        onOpenOfflineChecklist={() => setIsOfflineModalOpen(true)}
-        onOpenQrModal={() => setIsQrModalOpen(true)}
-        isDarkMode={isDarkMode}
-        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
-        isOnline={isOnline}
-        pendingSyncCount={pendingSyncCount}
-        onTriggerSync={triggerSync}
-        onLogout={handleLogout}
-      />
+      {/* Sticky Top Header with iOS Status Bar Safe Area Padding */}
+      <header className="sticky top-0 z-40 w-full max-w-full bg-white/95 dark:bg-outdoor-dark-card/95 backdrop-blur border-b border-stone-200 dark:border-stone-800 transition-colors pt-[max(env(safe-area-inset-top,0px),16px)] sm:pt-1 shadow-xs">
+        <Navbar
+          trips={trips}
+          activeTrip={activeTrip}
+          onSelectTrip={handleSelectTrip}
+          onOpenNewTrip={() => setIsNewTripModalOpen(true)}
+          onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+          onOpenEditTrip={() => setIsEditTripModalOpen(true)}
+          onOpenExportForChatGpt={() => setIsExportModalOpen(true)}
+          onOpenEditFromChatGpt={() => setIsEditChatGptOpen(true)}
+          onDeleteActiveTrip={() => handleDeleteTrip()}
+          onOpenShare={() => setIsShareModalOpen(true)}
+          onOpenOfflineChecklist={() => setIsOfflineModalOpen(true)}
+          onOpenQrModal={() => setIsQrModalOpen(true)}
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+          isOnline={isOnline}
+          pendingSyncCount={pendingSyncCount}
+          onTriggerSync={triggerSync}
+          onLogout={handleLogout}
+        />
 
-      {/* Sub-Header Tabs (Section 15: Přehled | Itinerář | Mapa | Ubytování | Rezervace | Rozpočet + Dnes) */}
-      {activeTrip && (
-        <div className="sticky top-14 sm:top-16 z-30 w-full max-w-full overflow-hidden bg-white/95 dark:bg-gray-800/95 backdrop-blur border-b border-gray-200 dark:border-gray-700 shadow-xs">
-          <div className="max-w-7xl mx-auto px-2.5 sm:px-6 h-12 flex items-center justify-between gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar w-full">
-            {/* 6 Main Tabs */}
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'overview'
-                    ? 'bg-teal-600 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
-                }`}
-              >
-                <LayoutDashboard className="w-3.5 h-3.5" />
-                <span>Přehled</span>
-              </button>
+        {/* Sub-Header Tabs: 2 rows grid on mobile so ALL tabs are visible; flex on desktop */}
+        {activeTrip && (
+          <div className="w-full max-w-full border-t border-stone-100 dark:border-stone-800/80 px-2 py-1.5 sm:px-6 sm:py-2">
+            <div className="max-w-7xl mx-auto w-full">
+              <div className="grid grid-cols-4 sm:flex sm:items-center sm:gap-2 gap-1 w-full">
+                {/* 1. Přehled */}
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className={`px-1 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[10.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                    activeTab === 'overview'
+                      ? 'bg-teal-600 text-white shadow-xs'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 bg-gray-50/80 dark:bg-gray-800/40 sm:bg-transparent'
+                  }`}
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5" />
+                  <span className="truncate">Přehled</span>
+                </button>
 
-              <button
-                onClick={() => setActiveTab('plan')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'plan'
-                    ? 'bg-teal-600 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
-                }`}
-              >
-                <Calendar className="w-3.5 h-3.5" />
-                <span>Itinerář</span>
-              </button>
+                {/* 2. Itinerář */}
+                <button
+                  onClick={() => setActiveTab('plan')}
+                  className={`px-1 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[10.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                    activeTab === 'plan'
+                      ? 'bg-teal-600 text-white shadow-xs'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 bg-gray-50/80 dark:bg-gray-800/40 sm:bg-transparent'
+                  }`}
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span className="truncate">Itinerář</span>
+                </button>
 
-              <button
-                onClick={() => setActiveTab('map')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'map'
-                    ? 'bg-teal-600 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
-                }`}
-              >
-                <Map className="w-3.5 h-3.5" />
-                <span>Mapa</span>
-              </button>
+                {/* 3. Mapa */}
+                <button
+                  onClick={() => setActiveTab('map')}
+                  className={`px-1 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[10.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                    activeTab === 'map'
+                      ? 'bg-teal-600 text-white shadow-xs'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 bg-gray-50/80 dark:bg-gray-800/40 sm:bg-transparent'
+                  }`}
+                >
+                  <Map className="w-3.5 h-3.5" />
+                  <span className="truncate">Mapa</span>
+                </button>
 
-              <button
-                onClick={() => setActiveTab('accommodations')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'accommodations'
-                    ? 'bg-teal-600 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
-                }`}
-              >
-                <Bed className="w-3.5 h-3.5" />
-                <span>Ubytování</span>
-              </button>
+                {/* 4. Ubytování */}
+                <button
+                  onClick={() => setActiveTab('accommodations')}
+                  className={`px-1 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[10.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                    activeTab === 'accommodations'
+                      ? 'bg-teal-600 text-white shadow-xs'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 bg-gray-50/80 dark:bg-gray-800/40 sm:bg-transparent'
+                  }`}
+                >
+                  <Bed className="w-3.5 h-3.5" />
+                  <span className="truncate">Ubytování</span>
+                </button>
 
-              <button
-                onClick={() => setActiveTab('bookings')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'bookings'
-                    ? 'bg-teal-600 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Rezervace</span>
-              </button>
+                {/* 5. Rezervace */}
+                <button
+                  onClick={() => setActiveTab('bookings')}
+                  className={`px-1 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[10.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                    activeTab === 'bookings'
+                      ? 'bg-teal-600 text-white shadow-xs'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 bg-gray-50/80 dark:bg-gray-800/40 sm:bg-transparent'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span className="truncate">Rezervace</span>
+                </button>
 
-              <button
-                onClick={() => setActiveTab('budget')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'budget'
-                    ? 'bg-teal-600 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
-                }`}
-              >
-                <DollarSign className="w-3.5 h-3.5" />
-                <span>Rozpočet</span>
-              </button>
+                {/* 6. Rozpočet */}
+                <button
+                  onClick={() => setActiveTab('budget')}
+                  className={`px-1 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[10.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                    activeTab === 'budget'
+                      ? 'bg-teal-600 text-white shadow-xs'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 bg-gray-50/80 dark:bg-gray-800/40 sm:bg-transparent'
+                  }`}
+                >
+                  <DollarSign className="w-3.5 h-3.5" />
+                  <span className="truncate">Rozpočet</span>
+                </button>
 
-              <button
-                onClick={() => setActiveTab('tips')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'tips'
-                    ? 'bg-amber-500 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
-                }`}
-              >
-                <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-                <span>Zásobárna tipů</span>
-              </button>
+                {/* 7. Zásobárna tipů */}
+                <button
+                  onClick={() => setActiveTab('tips')}
+                  className={`px-1 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[10.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                    activeTab === 'tips'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 bg-gray-50/80 dark:bg-gray-800/40 sm:bg-transparent'
+                  }`}
+                >
+                  <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="truncate">Tipy</span>
+                </button>
 
-              <button
-                onClick={() => setActiveTab('pois')}
-                className={`hidden md:flex px-3 py-1.5 rounded-xl text-xs font-bold transition-all items-center gap-1.5 ${
-                  activeTab === 'pois'
-                    ? 'bg-teal-600 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
-                }`}
-              >
-                <MapPin className="w-3.5 h-3.5" />
-                <span>Místa ({activeTrip.pois?.length || 0})</span>
-              </button>
-            </div>
-
-            {/* Prominent "Dnes" button (Section 16) */}
-            <div className="shrink-0">
-              <button
-                onClick={() => setActiveTab('today')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-sm ${
-                  activeTab === 'today'
-                    ? 'bg-rose-600 text-white ring-2 ring-rose-400'
-                    : 'bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
-                <span>DNES</span>
-              </button>
+                {/* 8. DNES */}
+                <button
+                  onClick={() => setActiveTab('today')}
+                  className={`px-1 sm:px-3.5 py-1 sm:py-1.5 rounded-xl text-[10.5px] sm:text-xs font-extrabold flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 transition-all shadow-xs sm:ml-auto ${
+                    activeTab === 'today'
+                      ? 'bg-rose-600 text-white ring-2 ring-rose-400'
+                      : 'bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+                  <span className="truncate">DNES</span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </header>
 
       {/* Main Content Area */}
       <main className="flex-1 w-full max-w-full overflow-x-hidden relative">

@@ -384,7 +384,7 @@ export const MapView: React.FC<MapViewProps> = ({
   }
 
   return (
-    <div className="relative w-full max-w-full h-[calc(100vh-104px)] sm:h-[calc(100vh-112px)] overflow-hidden">
+    <div className="relative w-full max-w-full h-[calc(100vh-165px)] sm:h-[calc(100vh-116px)] overflow-hidden">
       {/* MapLibre Canvas */}
       <div ref={mapContainerRef} className="w-full h-full" />
 
