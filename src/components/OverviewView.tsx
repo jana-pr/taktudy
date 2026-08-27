@@ -15,6 +15,9 @@ import {
   CheckCircle2,
   AlertCircle,
   HelpCircle,
+  Trash2,
+  Settings,
+  Bot,
 } from 'lucide-react';
 
 interface OverviewViewProps {
@@ -22,12 +25,21 @@ interface OverviewViewProps {
   onSelectDay: (dayId: string) => void;
   onNavigateToPoi: (poi: POI) => void;
   onOpenQuickAdd?: () => void;
+  onOpenExportForChatGpt?: () => void;
+  onOpenEditFromChatGpt?: () => void;
+  onOpenEditTrip?: () => void;
+  onDeleteTrip?: () => void;
 }
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
   trip,
   onSelectDay,
   onNavigateToPoi,
+  onOpenQuickAdd,
+  onOpenExportForChatGpt,
+  onOpenEditFromChatGpt,
+  onOpenEditTrip,
+  onDeleteTrip,
 }) => {
   const days = trip.days || [];
   const pois = trip.pois || [];
@@ -123,6 +135,51 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Quick Action Bar for ChatGPT round-trip, settings and deletion */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 p-3.5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-2xs">
+        <div className="flex flex-wrap items-center gap-2">
+          {onOpenExportForChatGpt && (
+            <button
+              onClick={onOpenExportForChatGpt}
+              className="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60 text-xs font-bold flex items-center gap-1.5 transition-colors"
+            >
+              <Bot className="w-3.5 h-3.5 text-teal-600" />
+              <span>Exportovat pro ChatGPT</span>
+            </button>
+          )}
+
+          {onOpenEditFromChatGpt && (
+            <button
+              onClick={onOpenEditFromChatGpt}
+              className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 text-xs font-bold flex items-center gap-1.5 transition-colors"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+              <span>Upravit trasu z ChatGPT</span>
+            </button>
+          )}
+
+          {onOpenEditTrip && (
+            <button
+              onClick={onOpenEditTrip}
+              className="px-3 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              <span>Nastavení cesty</span>
+            </button>
+          )}
+        </div>
+
+        {onDeleteTrip && (
+          <button
+            onClick={onDeleteTrip}
+            className="px-3 py-1.5 rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Smazat cestu</span>
+          </button>
+        )}
       </div>
 
       {/* Timeline Section Title */}

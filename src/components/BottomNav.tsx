@@ -1,6 +1,6 @@
 import { Map, Calendar, MapPin, Sparkles, Plus, Navigation, LayoutDashboard, DollarSign } from 'lucide-react';
 
-export type TabType = 'overview' | 'plan' | 'map' | 'accommodations' | 'bookings' | 'budget' | 'today' | 'pois';
+export type TabType = 'overview' | 'plan' | 'map' | 'accommodations' | 'bookings' | 'budget' | 'tips' | 'today' | 'pois';
 
 interface BottomNavProps {
   activeTab: TabType;

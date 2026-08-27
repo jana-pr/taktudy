@@ -1,4 +1,4 @@
-import { FullTrip, POI, Trip, Category, SyncMutation } from '../types';
+import { FullTrip, POI, Trip, Category, SyncMutation, Tip } from '../types';
 import { offlineDb } from '../offline/db';
 
 const API_BASE = '/api';
@@ -180,6 +180,46 @@ export const tripsApi = {
     return request(`/trips/${tripId}/reorder-pois`, {
       method: 'POST',
       body: JSON.stringify({ pois }),
+    });
+  },
+
+  replaceRoute: async (tripId: string, content: string, filename: string = 'chatgpt-plan.json'): Promise<any> => {
+    return request(`/trips/${tripId}/replace-route`, {
+      method: 'POST',
+      body: JSON.stringify({ content, filename }),
+    });
+  },
+};
+
+// Tips / Wishlist API
+export const tipsApi = {
+  getAll: async (tripId?: string): Promise<Tip[]> => {
+    const query = tripId ? `?trip_id=${encodeURIComponent(tripId)}` : '';
+    return request<Tip[]>(`/tips${query}`);
+  },
+
+  create: async (data: Partial<Tip>): Promise<Tip> => {
+    return request<Tip>('/tips', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (id: string, data: Partial<Tip>): Promise<Tip> => {
+    return request<Tip>(`/tips/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (id: string): Promise<any> => {
+    return request(`/tips/${id}`, { method: 'DELETE' });
+  },
+
+  promoteToPoi: async (id: string, payload: { tripId: string; dayId: string }): Promise<any> => {
+    return request(`/tips/${id}/promote-to-poi`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   },
 };

@@ -176,3 +176,22 @@ export interface SyncMutation {
   client_timestamp: string;
   client_version: number;
 }
+
+export interface Tip {
+  id: string;
+  user_id: string;
+  trip_id?: string | null;
+  title: string;
+  category_id: string;
+  location_name?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  notes?: string | null;
+  source_url?: string | null;
+  is_used: boolean | number;
+  category_label?: string;
+  category_icon?: string;
+  category_color?: string;
+  created_at: string;
+  updated_at: string;
+}

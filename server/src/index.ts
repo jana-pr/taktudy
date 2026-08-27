@@ -14,6 +14,7 @@ import { shareRoutes } from './routes/share.js';
 import { syncRoutes } from './routes/sync.js';
 import { importRoutes } from './routes/import.js';
 import { categoryRoutes } from './routes/categories.js';
+import { tipsRoutes } from './routes/tips.js';
 
 // Fastify TypeScript augmentation
 declare module 'fastify' {
@@ -69,6 +70,7 @@ async function main() {
   await fastify.register(syncRoutes, { prefix: '/api/sync' });
   await fastify.register(importRoutes, { prefix: '/api/import' });
   await fastify.register(categoryRoutes, { prefix: '/api/categories' });
+  await fastify.register(tipsRoutes, { prefix: '/api/tips' });
 
   // Health check
   fastify.get('/api/health', async () => {

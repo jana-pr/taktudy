@@ -219,6 +219,27 @@ export function initDatabase() {
     );
   `);
 
+  // Tips / Wishlist table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tips (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      trip_id TEXT,
+      title TEXT NOT NULL,
+      category_id TEXT NOT NULL DEFAULT 'other',
+      location_name TEXT,
+      lat REAL,
+      lng REAL,
+      notes TEXT,
+      source_url TEXT,
+      is_used INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE SET NULL
+    );
+  `);
+
   // Run dynamic migrations safely
   runMigrations();
 
@@ -299,6 +320,18 @@ function seedDemoData() {
   const checkTrip = db.prepare('SELECT id FROM trips WHERE id = ?').get('trip_srilanka_2026');
   if (!checkTrip) {
     seedSriLanka2026Trip(user.id);
+  }
+
+  // Seed demo tips if empty
+  const tipsCount = (db.prepare('SELECT COUNT(*) as c FROM tips WHERE user_id = ?').get(user.id) as any).c;
+  if (tipsCount === 0) {
+    const insertTip = db.prepare(`
+      INSERT INTO tips (id, user_id, trip_id, title, category_id, location_name, lat, lng, notes, is_used, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+    `);
+    insertTip.run('tip_1', user.id, 'trip_srilanka_2026', 'Coconut Tree Hill', 'view', 'Mirissa', 5.9450, 80.4610, 'Ikonický kopec s palmami na útesu nad oceánem – nejlepší při západu slunce.', now, now);
+    insertTip.run('tip_2', user.id, 'trip_srilanka_2026', 'Cafe Chill', 'food', 'Ella', 6.8745, 81.0460, 'Vyhlášené bistro a bar s výborným curry, burgerem a skvělou večerní atmosférou.', now, now);
+    insertTip.run('tip_3', user.id, 'trip_srilanka_2026', 'Ambuluwawa Tower', 'view', 'Gampola (u Kandy)', 7.1697, 80.5489, 'Spirálovitá věž biodiverzity na skalním vrcholu s 360° panoramatem.', now, now);
   }
 }
 

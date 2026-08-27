@@ -345,6 +345,153 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
+  // Replace existing trip route using ChatGPT / import content (Požadavek 2)
+  fastify.post('/:id/replace-route', async (request, reply) => {
+    const userId = (request.user as any).id;
+    const { id } = request.params as { id: string };
+    const { content, filename = 'chatgpt-plan.json' } = request.body as {
+      content: string;
+      filename?: string;
+    };
+
+    if (!content || !content.trim()) {
+      return reply.status(400).send({ error: 'Zadejte prosím text nebo kód trasy z ChatGPT.' });
+    }
+
+    const trip = db
+      .prepare('SELECT * FROM trips WHERE id = ? AND (owner_id = ? OR id = "trip_srilanka_2026")')
+      .get(id, userId) as any;
+
+    if (!trip) {
+      return reply.status(404).send({ error: 'Cesta nebyla nalezena.' });
+    }
+
+    try {
+      const parsed = parseRouteFile(content, filename);
+      const now = new Date().toISOString();
+
+      db.exec('BEGIN');
+      try {
+        if (parsed.title) {
+          db.prepare(`
+            UPDATE trips
+            SET title = ?, country_region = COALESCE(?, country_region),
+                travelers_count = COALESCE(?, travelers_count),
+                primary_transport = COALESCE(?, primary_transport),
+                updated_at = ?
+            WHERE id = ?
+          `).run(
+            parsed.title,
+            parsed.country_region || null,
+            parsed.travelers_count || null,
+            parsed.primary_transport || null,
+            now,
+            id
+          );
+        }
+
+        db.prepare('DELETE FROM sub_routes WHERE trip_id = ?').run(id);
+        db.prepare('DELETE FROM pois WHERE trip_id = ?').run(id);
+        db.prepare('DELETE FROM days WHERE trip_id = ?').run(id);
+
+        const dayMap = new Map<number, string>();
+        for (const d of parsed.days) {
+          const dayId = `day_${crypto.randomUUID()}`;
+          dayMap.set(d.day_number, dayId);
+
+          db.prepare(`
+            INSERT INTO days (
+              id, trip_id, day_number, specific_date, title, notes,
+              start_location, overnight_location, transit_time_est, distance_km, transport_mode,
+              has_detail, version, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
+          `).run(
+            dayId,
+            id,
+            d.day_number,
+            d.date || null,
+            d.title,
+            d.activities || null,
+            d.start_location || null,
+            d.overnight_location || null,
+            d.transit_time_est || null,
+            d.distance_km || 0,
+            d.transport_mode || 'Auto',
+            now,
+            now
+          );
+        }
+
+        const insertPoi = db.prepare(`
+          INSERT INTO pois (
+            id, trip_id, day_id, category_id, name, lat, lng,
+            description, why_visit, recommended_duration, cost_est, cost_currency, cost_category,
+            is_mandatory, is_enabled, data_origin, sort_order, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        const validCategories = new Set([
+          'accommodation', 'food', 'bar', 'monument', 'view', 'nature', 'transport', 'other'
+        ]);
+
+        parsed.pois.forEach((p, idx) => {
+          const poiId = `poi_${crypto.randomUUID()}`;
+          const dayId = p.day_number ? dayMap.get(p.day_number) : dayMap.get(1);
+
+          let cat = (p.category_id || 'other').toLowerCase();
+          if (cat === 'sight') cat = 'monument';
+          if (cat === 'hotel') cat = 'accommodation';
+          if (cat === 'restaurant') cat = 'food';
+          if (!validCategories.has(cat)) cat = 'other';
+
+          insertPoi.run(
+            poiId,
+            id,
+            dayId || null,
+            cat,
+            p.name || 'Bod zájmu',
+            Number(p.lat) || 0,
+            Number(p.lng) || 0,
+            p.description || null,
+            p.why_visit || null,
+            p.recommended_duration || null,
+            Number(p.cost_est) || 0,
+            p.cost_category || 'activities',
+            p.is_mandatory ? 1 : 0,
+            p.is_enabled ? 1 : 0,
+            p.data_origin || 'imported',
+            idx + 1,
+            now,
+            now
+          );
+        });
+
+        if (parsed.coordinates && parsed.coordinates.length > 1) {
+          const subRouteId = `sr_${crypto.randomUUID()}`;
+          db.prepare(`
+            INSERT INTO sub_routes (id, trip_id, title, coordinates, version)
+            VALUES (?, ?, 'Hlavní trasa cesty', ?, 1)
+          `).run(subRouteId, id, JSON.stringify(parsed.coordinates));
+        }
+
+        db.exec('COMMIT');
+      } catch (transErr) {
+        db.exec('ROLLBACK');
+        throw transErr;
+      }
+
+      return {
+        success: true,
+        id,
+        title: parsed.title || trip.title,
+        daysCount: parsed.days.length,
+        poisCount: parsed.pois.length,
+      };
+    } catch (err: any) {
+      return reply.status(400).send({ error: 'Chyba při aktualizaci trasy z ChatGPT.', details: err.message });
+    }
+  });
+
   // Optimize route (suggest improvements)
   fastify.post('/:id/optimize-route', async (request, reply) => {
     const userId = (request.user as any).id;

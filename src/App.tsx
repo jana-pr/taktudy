@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Trip, FullTrip, POI, Category } from './types';
-import { tripsApi, poiApi, categoriesApi, authApi, syncApi } from './api/client';
+import { Trip, FullTrip, POI, Category, Tip } from './types';
+import { tripsApi, poiApi, categoriesApi, authApi, syncApi, tipsApi } from './api/client';
 import { offlineDb } from './offline/db';
 import { Navbar } from './components/Navbar';
 import { BottomNav, TabType } from './components/BottomNav';
@@ -23,6 +23,9 @@ import { TripProposalModal } from './components/TripProposalModal';
 import { RouteOptimizationModal } from './components/RouteOptimizationModal';
 import { ImportRouteModal } from './components/ImportRouteModal';
 import { MobileAppModal } from './components/MobileAppModal';
+import { TipsView } from './components/TipsView';
+import { ExportTripModal } from './components/ExportTripModal';
+import { EditRouteFromChatGptModal } from './components/EditRouteFromChatGptModal';
 import { SharedTripView } from './components/SharedTripView';
 import { AuthModal } from './components/AuthModal';
 import {
@@ -35,6 +38,7 @@ import {
   Sparkles,
   MapPin,
   Loader2,
+  Lightbulb,
 } from 'lucide-react';
 
 export function App() {
@@ -54,6 +58,8 @@ export function App() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [activeTrip, setActiveTrip] = useState<FullTrip | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [tips, setTips] = useState<Tip[]>([]);
+  const [showTipsOnMap, setShowTipsOnMap] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Navigation State - defaults to 'overview' for rich trip experience
@@ -76,6 +82,8 @@ export function App() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isOptimizeModalOpen, setIsOptimizeModalOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isEditChatGptOpen, setIsEditChatGptOpen] = useState(false);
   const [mapClickCoords, setMapClickCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Theme & Offline Status
@@ -150,13 +158,15 @@ export function App() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [tripsData, catsData] = await Promise.all([
+      const [tripsData, catsData, tipsData] = await Promise.all([
         tripsApi.list(),
         categoriesApi.list().catch(() => []),
+        tipsApi.getAll().catch(() => []),
       ]);
 
       setTrips(tripsData);
       setCategories(catsData);
+      setTips(tipsData);
 
       if (tripsData.length > 0) {
         // Find Sri Lanka 2026 trip if available or take first
@@ -261,10 +271,33 @@ export function App() {
     setActiveTrip(full);
   };
 
-  const handleDeleteTrip = async () => {
-    if (!activeTrip) return;
-    await tripsApi.delete(activeTrip.id);
-    await loadData();
+  const handleDeleteTrip = async (tripIdToDelete?: string) => {
+    const targetId = tripIdToDelete || activeTrip?.id;
+    if (!targetId) return;
+
+    const targetTrip = trips.find((t) => t.id === targetId) || activeTrip;
+    const tripTitle = targetTrip?.title || 'tuto cestu';
+
+    if (!confirm(`Opravdu chcete smazat cestu „${tripTitle}“? Všechny dny a body zájmu v této cestě budou odstraněny.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await tripsApi.delete(targetId);
+      const remainingTrips = await tripsApi.getAll();
+      setTrips(remainingTrips);
+      if (remainingTrips.length > 0) {
+        const next = await tripsApi.get(remainingTrips[0].id);
+        setActiveTrip(next);
+      } else {
+        setActiveTrip(null);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Nepodařilo se smazat cestu.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddStage = async (title: string) => {
@@ -359,6 +392,8 @@ export function App() {
         onSelectTrip={handleSelectTrip}
         onOpenNewTrip={() => setIsNewTripModalOpen(true)}
         onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+        onOpenEditTrip={() => setIsEditTripModalOpen(true)}
+        onDeleteActiveTrip={() => handleDeleteTrip()}
         onOpenShare={() => setIsShareModalOpen(true)}
         onOpenOfflineChecklist={() => setIsOfflineModalOpen(true)}
         onOpenQrModal={() => setIsQrModalOpen(true)}
@@ -449,6 +484,18 @@ export function App() {
               </button>
 
               <button
+                onClick={() => setActiveTab('tips')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeTab === 'tips'
+                    ? 'bg-amber-500 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
+                }`}
+              >
+                <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                <span>Zásobárna tipů</span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab('pois')}
                 className={`hidden md:flex px-3 py-1.5 rounded-xl text-xs font-bold transition-all items-center gap-1.5 ${
                   activeTab === 'pois'
@@ -496,6 +543,10 @@ export function App() {
                   }}
                   onNavigateToPoi={setSelectedPoi}
                   onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+                  onOpenExportForChatGpt={() => setIsExportModalOpen(true)}
+                  onOpenEditFromChatGpt={() => setIsEditChatGptOpen(true)}
+                  onOpenEditTrip={() => setIsEditTripModalOpen(true)}
+                  onDeleteTrip={() => handleDeleteTrip()}
                 />
               </div>
             )}
@@ -519,6 +570,9 @@ export function App() {
                 pois={activeTrip.pois || []}
                 categories={categories}
                 days={activeTrip.days || []}
+                tips={tips}
+                showTips={showTipsOnMap}
+                onToggleShowTips={() => setShowTipsOnMap(!showTipsOnMap)}
                 selectedCategory={selectedCategory}
                 onSelectCategory={setSelectedCategory}
                 selectedDayId={selectedMapDayId}
@@ -577,6 +631,16 @@ export function App() {
                   onOpenExternalNavigation={handleOpenExternalNav}
                 />
               </div>
+            )}
+
+            {activeTab === 'tips' && (
+              <TipsView
+                activeTrip={activeTrip}
+                onNavigateToMap={(lat, lng) => {
+                  setActiveTab('map');
+                }}
+                onTripUpdated={refreshActiveTrip}
+              />
             )}
           </div>
         ) : (
@@ -696,6 +760,21 @@ export function App() {
       <MobileAppModal
         isOpen={isQrModalOpen}
         onClose={() => setIsQrModalOpen(false)}
+      />
+
+      {/* Export Trip for ChatGPT Modal (Požadavek 3) */}
+      <ExportTripModal
+        trip={activeTrip}
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+      />
+
+      {/* Edit Route from ChatGPT Modal (Požadavek 2) */}
+      <EditRouteFromChatGptModal
+        trip={activeTrip}
+        isOpen={isEditChatGptOpen}
+        onClose={() => setIsEditChatGptOpen(false)}
+        onTripUpdated={refreshActiveTrip}
       />
     </div>
   );

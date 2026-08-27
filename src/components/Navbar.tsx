@@ -1,6 +1,6 @@
 import React from 'react';
 import { Trip } from '../types';
-import { Compass, Moon, Sun, Share2, CheckCircle2, CloudUpload, HardDrive, LogOut, Plus, MapPin, QrCode } from 'lucide-react';
+import { Compass, Moon, Sun, Share2, CheckCircle2, CloudUpload, HardDrive, LogOut, Plus, MapPin, QrCode, Trash2, Settings } from 'lucide-react';
 
 interface NavbarProps {
   trips: Trip[];
@@ -8,6 +8,8 @@ interface NavbarProps {
   onSelectTrip: (trip: Trip) => void;
   onOpenNewTrip: () => void;
   onOpenQuickAdd?: () => void;
+  onOpenEditTrip?: () => void;
+  onDeleteActiveTrip?: () => void;
   onOpenShare: () => void;
   onOpenOfflineChecklist: () => void;
   onOpenQrModal?: () => void;
@@ -25,6 +27,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectTrip,
   onOpenNewTrip,
   onOpenQuickAdd,
+  onOpenEditTrip,
+  onDeleteActiveTrip,
   onOpenShare,
   onOpenOfflineChecklist,
   onOpenQrModal,
@@ -73,6 +77,30 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </option>
               ))}
             </select>
+          )}
+
+          {/* Edit Trip Settings Button */}
+          {activeTrip && onOpenEditTrip && (
+            <button
+              onClick={onOpenEditTrip}
+              title={`Nastavení cesty "${activeTrip.title}"`}
+              className="p-1.5 rounded-lg text-stone-500 hover:text-teal-600 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors flex-shrink-0"
+              aria-label="Nastavení cesty"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* Delete Active Trip Button */}
+          {activeTrip && onDeleteActiveTrip && (
+            <button
+              onClick={onDeleteActiveTrip}
+              title={`Smazat cestu "${activeTrip.title}"`}
+              className="p-1.5 rounded-lg text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors flex-shrink-0"
+              aria-label="Smazat cestu"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           )}
 
           {/* New Trip Button */}
