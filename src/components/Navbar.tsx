@@ -27,6 +27,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenQuickAdd,
   onOpenShare,
   onOpenOfflineChecklist,
+  onOpenQrModal,
   isDarkMode,
   onToggleDarkMode,
   isOnline,
