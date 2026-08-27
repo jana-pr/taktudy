@@ -13,7 +13,18 @@ import {
   Layers,
   Settings,
   ArrowRightLeft,
+  Navigation,
+  Compass,
+  ArrowRight,
+  ToggleLeft,
+  ToggleRight,
+  Sparkles,
+  HelpCircle,
+  ChevronUp,
+  ChevronDown,
+  Bed,
 } from 'lucide-react';
+import { tripsApi } from '../api/client';
 
 interface PlanViewProps {
   trip: FullTrip;
@@ -21,8 +32,10 @@ interface PlanViewProps {
   onToggleVisit: (poiId: string, currentStatus: string) => void;
   onOpenQuickAdd?: () => void;
   onOpenEditTrip?: () => void;
+  onOpenOptimize?: () => void;
   onAddStage?: (title: string) => Promise<void>;
   onMovePoiStage?: (poiId: string, stageId: string | null) => Promise<void>;
+  onTripUpdated?: () => void;
 }
 
 export const PlanView: React.FC<PlanViewProps> = ({
@@ -31,54 +44,120 @@ export const PlanView: React.FC<PlanViewProps> = ({
   onToggleVisit,
   onOpenQuickAdd,
   onOpenEditTrip,
+  onOpenOptimize,
   onAddStage,
   onMovePoiStage,
+  onTripUpdated,
 }) => {
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
-  const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
-  const [isAddingStage, setIsAddingStage] = useState(false);
-  const [newStageTitle, setNewStageTitle] = useState('');
   const [movingPoiId, setMovingPoiId] = useState<string | null>(null);
+  const [selectedSafariPark, setSelectedSafariPark] = useState<string>('Minneriya National Park');
 
-  const stages = trip?.stages || [];
+  const days = trip?.days || [];
   const pois = trip?.pois || [];
-  // Group days or display sequential list
-  const days = (trip?.days && trip.days.length > 0)
-    ? trip.days
-    : [{ id: 'default_day', trip_id: trip?.id || '', day_number: 1, title: 'Celkový itinerář', has_detail: false, version: 1 }];
+  const accommodations = trip?.accommodations || [];
 
-  const handleStageSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newStageTitle.trim() || !onAddStage) return;
-    await onAddStage(newStageTitle.trim());
-    setNewStageTitle('');
-    setIsAddingStage(false);
+  // Toggle optional activity enabled state
+  const handleToggleOptional = async (e: React.MouseEvent, poi: POI) => {
+    e.stopPropagation();
+    try {
+      await tripsApi.togglePoiEnabled(trip.id, poi.id, !poi.is_enabled);
+      if (onTripUpdated) onTripUpdated();
+    } catch (err) {
+      console.error('Chyba při přepnutí volitelného bodu:', err);
+    }
+  };
+
+  // Move POI to another day
+  const handleMovePoiDay = async (poiId: string, targetDayId: string) => {
+    try {
+      await tripsApi.reorderPois(trip.id, [{ id: poiId, sort_order: 99, day_id: targetDayId }]);
+      setMovingPoiId(null);
+      if (onTripUpdated) onTripUpdated();
+    } catch (err) {
+      console.error('Chyba při přesunu bodu na jiný den:', err);
+    }
+  };
+
+  // Move POI up/down within day
+  const handleReorderPoi = async (dayPois: POI[], index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= dayPois.length) return;
+
+    const reordered = [...dayPois];
+    const temp = reordered[index];
+    reordered[index] = reordered[targetIndex];
+    reordered[targetIndex] = temp;
+
+    const payload = reordered.map((p, i) => ({
+      id: p.id,
+      sort_order: i + 1,
+      day_id: p.day_id || undefined,
+    }));
+
+    try {
+      await tripsApi.reorderPois(trip.id, payload);
+      if (onTripUpdated) onTripUpdated();
+    } catch (err) {
+      console.error('Chyba při změně pořadí bodů:', err);
+    }
+  };
+
+  // Open Google Maps driving route for a day
+  const openGoogleMapsDay = (dayPois: POI[], startLoc?: string | null, endLoc?: string | null) => {
+    if (dayPois.length === 0 && !startLoc) return;
+
+    const origin = startLoc ? encodeURIComponent(startLoc) : `${dayPois[0]?.lat},${dayPois[0]?.lng}`;
+    const destination = endLoc
+      ? encodeURIComponent(endLoc)
+      : `${dayPois[dayPois.length - 1]?.lat},${dayPois[dayPois.length - 1]?.lng}`;
+
+    // Google Maps supports max ~9 waypoints per URL
+    const waypoints = dayPois
+      .slice(startLoc ? 0 : 1, endLoc ? dayPois.length : dayPois.length - 1)
+      .slice(0, 8)
+      .map((p) => `${p.lat},${p.lng}`)
+      .join('|');
+
+    const url = waypoints
+      ? `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${waypoints}&travelmode=driving`
+      : `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+
+    window.open(url, '_blank');
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 pb-24">
-      {/* Trip Header Banner */}
-      <div className="mb-6 bg-white dark:bg-outdoor-dark-card rounded-2xl p-5 border border-stone-200 dark:border-stone-800 shadow-sm">
-        <div className="flex items-start justify-between gap-3">
+    <div className="max-w-4xl mx-auto px-4 py-6 pb-28 space-y-6">
+      {/* Header Banner */}
+      <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-outdoor-coral">
-              Itinerář cesty
+            <span className="text-xs font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
+              Denní itinerář cesty
             </span>
-            <h1 className="font-heading font-extrabold text-2xl text-outdoor-text dark:text-white mt-1">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white mt-0.5">
               {trip.title}
             </h1>
-            {trip.motto && (
-              <p className="text-sm text-outdoor-text-secondary dark:text-stone-300 italic mt-0.5">
-                „{trip.motto}“
-              </p>
-            )}
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Celkem {days.length} dní • {pois.length} zájmových míst • Volitelná i povinná místa
+            </p>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            {onOpenOptimize && (
+              <button
+                onClick={onOpenOptimize}
+                className="px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-xs font-bold flex items-center gap-1.5 border border-purple-200 dark:border-purple-800 transition-all shadow-sm active:scale-95"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Optimalizovat trasu</span>
+              </button>
+            )}
+
             {onOpenQuickAdd && (
               <button
                 onClick={onOpenQuickAdd}
-                className="px-3 py-1.5 rounded-xl bg-outdoor-coral hover:bg-outdoor-coral/90 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
+                className="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>+ Přidat bod</span>
@@ -88,323 +167,347 @@ export const PlanView: React.FC<PlanViewProps> = ({
             {onOpenEditTrip && (
               <button
                 onClick={onOpenEditTrip}
-                className="px-3 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 text-xs font-semibold text-stone-600 dark:text-stone-300 flex items-center gap-1.5 transition-colors shadow-sm"
-                title="Upravit cestu, změnit odkaz na trasu nebo stav"
+                className="px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/60 text-xs font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-1.5 transition-colors"
+                title="Upravit trasu nebo odkaz"
               >
                 <Settings className="w-3.5 h-3.5" />
-                <span>Upravit trasu</span>
               </button>
             )}
           </div>
         </div>
-
-        {/* Route Link and Stage actions */}
-        <div className="mt-3 pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between flex-wrap gap-2">
-          {trip.route_url ? (
-            <a
-              href={trip.route_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-outdoor-teal/10 hover:bg-outdoor-teal/20 text-outdoor-teal dark:text-outdoor-dark-route text-xs font-bold transition-colors"
-            >
-              <span>Otevřít celou trasu v Mapy.cz / Google Maps</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          ) : (
-            <span className="text-xs text-stone-400">Trasa se tvoří z vašich bodů</span>
-          )}
-
-          {onAddStage && !isAddingStage && (
-            <button
-              onClick={() => setIsAddingStage(true)}
-              className="text-xs text-outdoor-teal font-bold flex items-center gap-1 hover:underline ml-auto"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+ Přidat novou etapu</span>
-            </button>
-          )}
-        </div>
-
-        {/* Inline Add Stage Form */}
-        {isAddingStage && (
-          <form onSubmit={handleStageSubmit} className="mt-3 pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center gap-2">
-            <input
-              type="text"
-              required
-              autoFocus
-              value={newStageTitle}
-              onChange={(e) => setNewStageTitle(e.target.value)}
-              placeholder="Název etapy (např. Kandy a okolí, Jižní pobřeží...)"
-              className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-stone-300 dark:border-stone-700 dark:bg-stone-800"
-            />
-            <button
-              type="submit"
-              className="px-3 py-1.5 bg-outdoor-teal text-white text-xs font-bold rounded-lg shadow-sm"
-            >
-              Uložit etapu
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsAddingStage(false)}
-              className="px-2 py-1.5 text-xs text-stone-500 hover:text-stone-700"
-            >
-              Zrušit
-            </button>
-          </form>
-        )}
       </div>
 
-      {/* Stages Filter bar if stages exist */}
-      {stages.length > 0 && (
-        <div className="mb-4 space-y-1.5">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
-            Etapy cesty
-          </div>
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-            <button
-              onClick={() => setSelectedStageId(null)}
-              className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex-shrink-0 ${
-                selectedStageId === null
-                  ? 'bg-outdoor-teal-dark text-white shadow'
-                  : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300'
-              }`}
-            >
-              Všechny etapy
-            </button>
-            {stages.map((stage) => (
-              <button
-                key={stage.id}
-                onClick={() => setSelectedStageId(selectedStageId === stage.id ? null : stage.id)}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex-shrink-0 ${
-                  selectedStageId === stage.id
-                    ? 'bg-outdoor-teal-dark text-white shadow'
-                    : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300'
-                }`}
-              >
-                <span className="flex items-center gap-1">
-                  <Layers className="w-3 h-3" />
-                  <span>{stage.title}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Days Tabs / Chips */}
-      {days.length > 1 && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 no-scrollbar">
-          <button
-            onClick={() => setSelectedDayId(null)}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex-shrink-0 ${
-              selectedDayId === null
-                ? 'bg-outdoor-teal text-white shadow'
-                : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200'
-            }`}
-          >
-            Všechny dny ({pois.length})
-          </button>
-
-          {days.map((d) => {
-            const count = pois.filter((p) => p.day_id === d.id).length;
-            const isSelected = selectedDayId === d.id;
-
-            return (
-              <button
-                key={d.id}
-                onClick={() => setSelectedDayId(isSelected ? null : d.id)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex-shrink-0 ${
-                  isSelected
-                    ? 'bg-outdoor-teal text-white shadow'
-                    : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-200'
-                }`}
-              >
-                Den {d.day_number} ({count})
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Itinerary Tree */}
+      {/* Days Loop */}
       <div className="space-y-6">
-        {days
-          .filter((d) => selectedDayId === null || d.id === selectedDayId)
-          .map((day) => {
-            const dayPois = pois
-              .filter((p) => (day.id === 'default_day' ? true : p.day_id === day.id))
-              .filter((p) => (selectedStageId ? p.stage_id === selectedStageId : true));
+        {days.map((day) => {
+          const dayPois = pois.filter((p) => p.day_id === day.id).sort((a, b) => a.sort_order - b.sort_order);
+          const dayHotel = accommodations.find((a) => a.day_id === day.id);
 
-            return (
-              <div key={day.id} className="space-y-3">
-                {/* Day Header (AC-06, AC-07: chevron only if has_detail is true) */}
-                <div className="flex items-center justify-between py-2 border-b border-stone-200 dark:border-stone-800">
-                  <div className="flex items-center gap-2">
-                    <span className="bg-outdoor-teal-dark text-white text-xs font-extrabold px-2.5 py-1 rounded-md">
+          return (
+            <div
+              key={day.id}
+              id={`day-${day.id}`}
+              className="bg-white dark:bg-gray-800 rounded-3xl p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-700 space-y-4"
+            >
+              {/* Day Header Card */}
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-4 border-b border-gray-100 dark:border-gray-700">
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-teal-600 dark:text-teal-400">
+                    <span className="px-2.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/50 text-teal-800 dark:text-teal-200">
                       DEN {day.day_number}
                     </span>
-                    <h2 className="font-heading font-bold text-lg text-outdoor-text dark:text-white">
-                      {day.title}
-                    </h2>
+                    {day.specific_date && (
+                      <span>
+                        {new Date(day.specific_date).toLocaleDateString('cs-CZ', {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'numeric',
+                        })}
+                      </span>
+                    )}
+                    {day.recommended_departure && (
+                      <span className="text-gray-400">• Odjezd: {day.recommended_departure}</span>
+                    )}
                   </div>
 
-                  {/* Explicit Affordance Rule */}
-                  {day.has_detail ? (
-                    <span
-                      title="Zobrazit podrobnosti dne"
-                      className="text-outdoor-teal dark:text-outdoor-dark-route flex items-center text-xs font-semibold cursor-pointer hover:underline"
-                    >
-                      Detail dne
-                      <ChevronRight className="w-4 h-4 ml-0.5" />
-                    </span>
-                  ) : (
-                    <span className="text-xs text-stone-400 dark:text-stone-500 italic">
-                      (bez detailu)
-                    </span>
+                  <h2 className="text-xl font-extrabold text-gray-900 dark:text-white mt-1">
+                    {day.title}
+                  </h2>
+
+                  {/* Route Bar: Start -> Dest */}
+                  {(day.start_location || day.overnight_location) && (
+                    <div className="flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-300 mt-1.5 py-1 px-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl w-fit">
+                      <span className="text-teal-600 dark:text-teal-400 font-bold">{day.start_location || 'Start'}</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">{day.overnight_location || 'Cíl'}</span>
+                      {day.distance_km ? <span className="text-gray-400">({day.distance_km} km)</span> : null}
+                      {day.transit_time_est ? <span className="text-gray-400">⏱ {day.transit_time_est}</span> : null}
+                    </div>
                   )}
                 </div>
 
-                {/* POIs in Day */}
-                {dayPois.length === 0 ? (
-                  <div className="p-6 rounded-2xl bg-stone-50 dark:bg-stone-800/30 border border-dashed border-stone-200 dark:border-stone-800 text-stone-400 text-xs text-center flex flex-col items-center justify-center gap-2.5">
-                    <p className="font-medium">V tomto dni zatím nemáš naplánovaná žádná místa.</p>
-                    {onOpenQuickAdd && (
-                      <button
-                        onClick={onOpenQuickAdd}
-                        className="px-3.5 py-1.5 bg-outdoor-coral hover:bg-outdoor-coral/90 text-white text-xs font-bold rounded-xl shadow-sm transition-transform active:scale-95 flex items-center gap-1.5"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Přidat bod sem</span>
-                      </button>
-                    )}
+                {/* Day Navigation Action */}
+                <div className="shrink-0 flex items-center gap-2">
+                  <button
+                    onClick={() => openGoogleMapsDay(dayPois, day.start_location, day.overnight_location)}
+                    className="px-3.5 py-2 bg-teal-50 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+                  >
+                    <Navigation className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                    <span>Otevřít trasu v Google Maps</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Special Parallel Transit: Day 9 (3. 1.) */}
+              {day.day_number === 9 && (
+                <div className="p-4 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 rounded-2xl text-xs space-y-2">
+                  <div className="font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
+                    <span>🚆 Souběžný paralelní přesun:</span>
                   </div>
-                ) : (
-                  <div className="space-y-2.5">
-                    {dayPois.map((poi) => {
-                      const isVisited = poi.visit_status === 'visited';
-                      const isSkipped = poi.visit_status === 'skipped';
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-blue-950 dark:text-blue-100">
+                    <div className="p-2.5 bg-white/80 dark:bg-gray-800/80 rounded-xl border border-blue-100 dark:border-blue-900">
+                      <strong>My (cestující):</strong> Vyhlídkový vlak Nanu Oya → Ella (scénická jízda přes hory).
+                    </div>
+                    <div className="p-2.5 bg-white/80 dark:bg-gray-800/80 rounded-xl border border-blue-100 dark:border-blue-900">
+                      <strong>Řidič (auto + kufry):</strong> Převeze hlavní zavazadla autem a čeká na nádraží v Ella.
+                    </div>
+                  </div>
+                </div>
+              )}
 
-                      return (
-                        <div
-                          key={poi.id}
-                          onClick={() => onSelectPoi(poi)}
-                          className={`group flex items-start gap-3 p-3.5 rounded-xl border transition-all cursor-pointer ${
-                            isVisited
-                              ? 'bg-stone-50/60 dark:bg-stone-900/40 border-stone-200 dark:border-stone-800 opacity-65'
-                              : 'bg-white dark:bg-outdoor-dark-card border-stone-200 dark:border-stone-800 shadow-sm hover:border-outdoor-teal/40 hover:shadow-md'
-                          }`}
-                        >
-                          {/* Visit Status Toggle button */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onToggleVisit(poi.id, poi.visit_status);
-                            }}
-                            className="mt-0.5 text-stone-400 hover:text-outdoor-positive transition-colors flex-shrink-0"
-                            title={
-                              isVisited
-                                ? 'Označeno jako navštíveno (kliknutím zrušit)'
-                                : 'Kliknutím označit jako navštíveno'
-                            }
-                            aria-label={`Stav návštěvy pro ${poi.name}`}
-                          >
-                            {isVisited ? (
-                              <CheckCircle2 className="w-5 h-5 text-outdoor-positive" />
-                            ) : isSkipped ? (
-                              <EyeOff className="w-5 h-5 text-stone-400" />
+              {/* Special Safari Selector: Day 3 (28. 12.) */}
+              {day.day_number === 3 && (
+                <div className="p-4 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-2xl text-xs space-y-2">
+                  <div className="font-bold text-amber-900 dark:text-amber-200 flex items-center justify-between">
+                    <span>🐘 Odpolední Safari – Výběr na místě podle pohybu slonů:</span>
+                    <span className="text-[10px] bg-amber-200/80 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200 px-2 py-0.5 rounded-full font-bold">
+                      VOLBA NA MÍSTĚ
+                    </span>
+                  </div>
+                  <p className="text-amber-800 dark:text-amber-300">
+                    Vybereme pouze <strong>JEDNU</strong> variantu podle ranní zprávy rangerů:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1">
+                    {['Minneriya National Park', 'Kaudulla National Park', 'Hurulu Eco Park'].map((park) => (
+                      <button
+                        key={park}
+                        type="button"
+                        onClick={() => setSelectedSafariPark(park)}
+                        className={`p-2.5 rounded-xl border text-left font-semibold transition-all ${
+                          selectedSafariPark === park
+                            ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
+                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-amber-200 dark:border-amber-900/50 hover:border-amber-400'
+                        }`}
+                      >
+                        <div className="text-[11px] font-bold">{park}</div>
+                        <div className="text-[10px] opacity-80 mt-0.5">
+                          {selectedSafariPark === park ? '✓ Zvoleno' : 'Kliknout pro výběr'}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* POIs List */}
+              <div className="space-y-3">
+                {dayPois.map((poi, idx) => {
+                  const isMandatory = poi.is_mandatory !== false;
+                  const isEnabled = poi.is_enabled !== false;
+
+                  return (
+                    <div
+                      key={poi.id}
+                      onClick={() => onSelectPoi(poi)}
+                      className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                        isMandatory
+                          ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-sm hover:border-teal-400'
+                          : isEnabled
+                          ? 'bg-purple-50/40 dark:bg-purple-950/20 border-dashed border-purple-300 dark:border-purple-800/60 hover:border-purple-400'
+                          : 'bg-gray-50 dark:bg-gray-800/40 border-dashed border-gray-200 dark:border-gray-700 opacity-60'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        {/* Left: Info */}
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* Mandatory / Optional Badge */}
+                            {isMandatory ? (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-600 text-white shadow-xs">
+                                ★ POVINNÉ MÍSTO
+                              </span>
                             ) : (
-                              <Circle className="w-5 h-5 stroke-stone-300 dark:stroke-stone-600 hover:stroke-outdoor-teal" />
-                            )}
-                          </button>
-
-                          {/* Time & Title info */}
-                          <div className="flex-1 min-w-0">
-                            {/* Time badge (Bold for fixed time) */}
-                            {poi.time_mode === 'fixed' && poi.target_time && (
-                              <div className="flex items-center gap-1 text-outdoor-coral dark:text-outdoor-top font-black text-sm mb-0.5">
-                                <Clock className="w-3.5 h-3.5" />
-                                <span>{poi.target_time} — Pevný čas</span>
-                              </div>
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-200 border border-purple-200 dark:border-purple-800">
+                                VOLITELNÉ MÍSTO
+                              </span>
                             )}
 
-                            {poi.time_mode === 'approximate' && poi.target_time && (
-                              <div className="flex items-center gap-1 text-outdoor-text-secondary dark:text-stone-400 text-xs font-semibold mb-0.5">
-                                <Clock className="w-3.5 h-3.5" />
-                                <span>cca {poi.target_time}</span>
-                              </div>
+                            {poi.is_top && (
+                              <span className="text-amber-500 font-bold text-xs flex items-center gap-0.5">
+                                <Star className="w-3.5 h-3.5 fill-amber-500" /> TOP
+                              </span>
                             )}
 
-                            {/* Name + TOP flag */}
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <h3
-                                className={`font-semibold text-sm sm:text-base leading-tight ${
-                                  isVisited
-                                    ? 'line-through text-stone-500 dark:text-stone-400'
-                                    : 'text-outdoor-text dark:text-white'
-                                }`}
+                            {poi.data_origin === 'ai_completed' && (
+                              <span className="text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
+                                <Sparkles className="w-2.5 h-2.5" /> Doplněno AI
+                              </span>
+                            )}
+
+                            {poi.data_origin === 'needs_completion' && (
+                              <span className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 px-2 py-0.5 rounded-full font-medium">
+                                Je třeba doplnit
+                              </span>
+                            )}
+                          </div>
+
+                          <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                            {poi.name}
+                          </h3>
+
+                          {poi.why_visit && (
+                            <p className="text-xs text-gray-600 dark:text-gray-300">
+                              <strong>Proč tam jet:</strong> {poi.why_visit}
+                            </p>
+                          )}
+
+                          {poi.private_notes && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                              Poznámka: {poi.private_notes}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Right: Actions & Details */}
+                        <div className="flex sm:flex-col items-center sm:items-end justify-between gap-2 shrink-0">
+                          {/* Duration & Cost */}
+                          <div className="flex items-center gap-2 text-xs">
+                            {poi.recommended_duration && (
+                              <span className="text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5" /> {poi.recommended_duration}
+                              </span>
+                            )}
+                            {poi.cost_est ? (
+                              <span className="font-bold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-lg">
+                                ${poi.cost_est}
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {/* Quick Controls */}
+                          <div className="flex items-center gap-1">
+                            {/* Toggle switch for optional activities */}
+                            {!isMandatory && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleToggleOptional(e, poi)}
+                                className="p-1 text-teal-600 dark:text-teal-400 hover:scale-105 transition-transform"
+                                title={isEnabled ? 'Vypnout z rozpočtu a programu' : 'Zapnout do rozpočtu'}
                               >
-                                {poi.name}
-                              </h3>
+                                {isEnabled ? (
+                                  <ToggleRight className="w-6 h-6" />
+                                ) : (
+                                  <ToggleLeft className="w-6 h-6 text-gray-400" />
+                                )}
+                              </button>
+                            )}
 
-                              {poi.is_top && (
-                                <span className="inline-flex items-center gap-0.5 bg-outdoor-top/10 text-outdoor-top dark:text-outdoor-dark-top text-[11px] font-black px-1.5 py-0.5 rounded border border-outdoor-top/30">
-                                  <Star className="w-3 h-3 fill-outdoor-top text-outdoor-top" />
-                                  TOP
-                                </span>
-                              )}
+                            {/* Move up / down within day */}
+                            <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReorderPoi(dayPois, idx, 'up');
+                                }}
+                                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30"
+                                title="Posunout nahoru"
+                              >
+                                <ChevronUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === dayPois.length - 1}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReorderPoi(dayPois, idx, 'down');
+                                }}
+                                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30"
+                                title="Posunout dolů"
+                              >
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              </button>
                             </div>
 
-                            {/* Description / Address preview */}
-                            {poi.description && (
-                              <p className="text-xs text-outdoor-text-secondary dark:text-stone-400 line-clamp-1 mt-1">
-                                {poi.description}
-                              </p>
-                            )}
+                            {/* Move to another day dropdown toggle */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMovingPoiId(movingPoiId === poi.id ? null : poi.id);
+                              }}
+                              className="p-1.5 text-gray-500 hover:text-teal-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                              title="Přesunout na jiný den"
+                            >
+                              <ArrowRightLeft className="w-3.5 h-3.5" />
+                            </button>
 
-                            {poi.address && (
-                              <div className="flex items-center gap-1 text-[11px] text-stone-400 mt-1">
-                                <MapPin className="w-3 h-3 flex-shrink-0" />
-                                <span className="truncate">{poi.address}</span>
-                              </div>
-                            )}
-
-                            {/* Quick Move to Stage dropdown */}
-                            {stages.length > 0 && onMovePoiStage && (
-                              <div
-                                className="mt-2 pt-2 border-t border-stone-100 dark:border-stone-800 flex items-center gap-1.5"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Layers className="w-3 h-3 text-stone-400" />
-                                <span className="text-[10px] text-stone-400 font-semibold">Etapa:</span>
-                                <select
-                                  value={poi.stage_id || ''}
-                                  onChange={(e) => onMovePoiStage(poi.id, e.target.value || null)}
-                                  className="text-[11px] font-medium bg-stone-100 dark:bg-stone-800 rounded px-1.5 py-0.5 border border-stone-200 dark:border-stone-700 text-outdoor-text dark:text-stone-300 focus:ring-1 focus:ring-outdoor-teal"
-                                >
-                                  <option value="">Bez etapy (celá cesta)</option>
-                                  {stages.map((s) => (
-                                    <option key={s.id} value={s.id}>
-                                      {s.title}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* POI Always has detail affordance (AC-05) */}
-                          <div className="self-center flex-shrink-0 text-stone-300 group-hover:text-outdoor-teal transition-colors">
-                            <ChevronRight className="w-5 h-5" />
+                            {/* Navigate in Google Maps button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(
+                                  `https://www.google.com/maps/search/?api=1&query=${poi.lat},${poi.lng}`,
+                                  '_blank'
+                                );
+                              }}
+                              className="px-2.5 py-1 bg-gray-100 hover:bg-teal-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:text-teal-600 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
+                              title="Navigovat v Google Maps"
+                            >
+                              <Navigation className="w-3 h-3 text-teal-600" />
+                              <span>Navigovat</span>
+                            </button>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      </div>
+
+                      {/* Move to another day selector popover */}
+                      {movingPoiId === poi.id && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-3 p-3 bg-gray-50 dark:bg-gray-700/70 border border-gray-200 dark:border-gray-600 rounded-xl text-xs space-y-2 animate-fade-in"
+                        >
+                          <div className="font-bold text-gray-800 dark:text-gray-200">
+                            Přesunout místo „{poi.name}“ na jiný den:
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {days.map((d) => (
+                              <button
+                                key={d.id}
+                                type="button"
+                                disabled={d.id === poi.day_id}
+                                onClick={() => handleMovePoiDay(poi.id, d.id)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                                  d.id === poi.day_id
+                                    ? 'bg-teal-600 text-white'
+                                    : 'bg-white dark:bg-gray-800 hover:bg-teal-50 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600'
+                                }`}
+                              >
+                                Den {d.day_number}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+
+              {/* Hotel bar at the bottom */}
+              {dayHotel && (
+                <div className="pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
+                  <div className="flex items-center gap-2">
+                    <Bed className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    <span>Ubytování na noc: <strong>{dayHotel.hotel_name}</strong></span>
+                  </div>
+                  {dayHotel.booking_url && (
+                    <a
+                      href={dayHotel.booking_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-600 dark:text-blue-400 font-semibold hover:underline flex items-center gap-1"
+                    >
+                      Booking.com <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

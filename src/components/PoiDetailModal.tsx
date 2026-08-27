@@ -313,15 +313,52 @@ export const PoiDetailModal: React.FC<PoiDetailModalProps> = ({
                 )}
               </div>
 
-              {/* Description Block */}
-              {poi.description && (
+              {/* Badges Bar: Mandatory, Duration, Cost, Origin */}
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                {poi.is_mandatory ? (
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-200">
+                    ★ Povinné místo
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200">
+                    Volitelné místo
+                  </span>
+                )}
+
+                {poi.recommended_duration && (
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5" /> {poi.recommended_duration}
+                  </span>
+                )}
+
+                {poi.cost_est ? (
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white">
+                    ${poi.cost_est} USD
+                  </span>
+                ) : null}
+
+                {poi.data_origin === 'ai_completed' && (
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 flex items-center gap-1">
+                    Doplněno AI
+                  </span>
+                )}
+
+                {poi.data_origin === 'needs_completion' && (
+                  <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200">
+                    Je třeba doplnit
+                  </span>
+                )}
+              </div>
+
+              {/* Proč tam jet / Description Block */}
+              {(poi.why_visit || poi.description) && (
                 <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-800">
                   <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-outdoor-teal mb-1">
                     <FileText className="w-3.5 h-3.5" />
-                    <span>Proč sem jedu / Popis místa</span>
+                    <span>Proč tam jet / Popis místa</span>
                   </div>
                   <p className="text-sm text-outdoor-text dark:text-stone-200 leading-relaxed whitespace-pre-wrap">
-                    {poi.description}
+                    {poi.why_visit || poi.description}
                   </p>
                 </div>
               )}

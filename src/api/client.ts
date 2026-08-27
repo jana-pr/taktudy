@@ -141,6 +141,47 @@ export const tripsApi = {
   deleteStage: async (tripId: string, stageId: string): Promise<any> => {
     return request(`/trips/${tripId}/stages/${stageId}`, { method: 'DELETE' });
   },
+
+  aiPropose: async (prompt: string): Promise<any> => {
+    return request('/trips/ai-propose', {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
+    });
+  },
+
+  importRoute: async (content: string, filename: string, createTrip: boolean = false): Promise<any> => {
+    return request('/trips/import', {
+      method: 'POST',
+      body: JSON.stringify({ content, filename, createTrip }),
+    });
+  },
+
+  optimizeRoute: async (tripId: string): Promise<any> => {
+    return request(`/trips/${tripId}/optimize-route`, {
+      method: 'POST',
+    });
+  },
+
+  setRoomScenario: async (tripId: string, roomScenario: '2+1' | 'triple'): Promise<any> => {
+    return request(`/trips/${tripId}/room-scenario`, {
+      method: 'PUT',
+      body: JSON.stringify({ room_scenario: roomScenario }),
+    });
+  },
+
+  togglePoiEnabled: async (tripId: string, poiId: string, is_enabled?: boolean): Promise<any> => {
+    return request(`/trips/${tripId}/pois/${poiId}/toggle-enabled`, {
+      method: 'PUT',
+      body: JSON.stringify({ is_enabled }),
+    });
+  },
+
+  reorderPois: async (tripId: string, pois: { id: string; sort_order: number; day_id?: string }[]): Promise<any> => {
+    return request(`/trips/${tripId}/reorder-pois`, {
+      method: 'POST',
+      body: JSON.stringify({ pois }),
+    });
+  },
 };
 
 // POI API

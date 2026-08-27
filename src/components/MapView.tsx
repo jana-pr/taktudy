@@ -6,8 +6,11 @@ import { Star, Layers, Plus, MapPin } from 'lucide-react';
 interface MapViewProps {
   pois: POI[];
   categories: Category[];
+  days?: Day[];
   selectedCategory: string | null;
   onSelectCategory: (catId: string | null) => void;
+  selectedDayId?: string | null;
+  onSelectDayId?: (dayId: string | null) => void;
   onlyTop: boolean;
   onToggleOnlyTop: () => void;
   onSelectPoi: (poi: POI) => void;
@@ -19,8 +22,11 @@ interface MapViewProps {
 export const MapView: React.FC<MapViewProps> = ({
   pois,
   categories,
+  days = [],
   selectedCategory,
   onSelectCategory,
+  selectedDayId = null,
+  onSelectDayId,
   onlyTop,
   onToggleOnlyTop,
   onSelectPoi,
@@ -33,8 +39,9 @@ export const MapView: React.FC<MapViewProps> = ({
   const markersRef = useRef<maplibregl.Marker[]>([]);
   const safePois = pois || [];
 
-  // Filter POIs
+  // Filter POIs by Category, Top, and Day
   const filteredPois = safePois.filter((p) => {
+    if (selectedDayId && p.day_id !== selectedDayId) return false;
     if (onlyTop && !p.is_top) return false;
     if (selectedCategory && p.category_id !== selectedCategory) return false;
     return true;
@@ -231,6 +238,22 @@ export const MapView: React.FC<MapViewProps> = ({
 
       {/* Floating Filter Pills on Top of Map */}
       <div className="absolute top-3 left-3 right-14 z-20 flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar pointer-events-auto">
+        {/* Day / Whole Route Filter */}
+        {days.length > 0 && onSelectDayId && (
+          <select
+            value={selectedDayId || ''}
+            onChange={(e) => onSelectDayId(e.target.value ? e.target.value : null)}
+            className="text-xs font-bold px-3 py-1.5 rounded-full shadow-md transition-all flex-shrink-0 bg-white/95 dark:bg-stone-800 text-teal-800 dark:text-teal-300 border border-teal-300 dark:border-teal-700 outline-none cursor-pointer"
+          >
+            <option value="">🗺️ Celá trasa ({days.length} dní)</option>
+            {days.map((d) => (
+              <option key={d.id} value={d.id}>
+                Den {d.day_number}: {d.title}
+              </option>
+            ))}
+          </select>
+        )}
+
         {/* TOP Filter */}
         <button
           onClick={onToggleOnlyTop}

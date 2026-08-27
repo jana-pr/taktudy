@@ -1,7 +1,6 @@
-import React from 'react';
-import { Map, Calendar, MapPin, Sparkles, Plus, Navigation } from 'lucide-react';
+import { Map, Calendar, MapPin, Sparkles, Plus, Navigation, LayoutDashboard, DollarSign } from 'lucide-react';
 
-export type TabType = 'map' | 'plan' | 'pois' | 'today';
+export type TabType = 'overview' | 'plan' | 'map' | 'accommodations' | 'bookings' | 'budget' | 'today' | 'pois';
 
 interface BottomNavProps {
   activeTab: TabType;
@@ -19,24 +18,24 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-outdoor-dark-card/95 backdrop-blur border-t border-stone-200 dark:border-stone-800 safe-area-pb transition-colors shadow-lg">
       <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-around relative">
-        {/* Mapa */}
+        {/* Přehled */}
         <button
-          onClick={() => onSelectTab('map')}
-          className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${
-            activeTab === 'map'
+          onClick={() => onSelectTab('overview')}
+          className={`flex flex-col items-center justify-center w-12 h-full transition-colors ${
+            activeTab === 'overview'
               ? 'text-outdoor-teal dark:text-outdoor-dark-route font-bold'
               : 'text-outdoor-text-secondary dark:text-stone-400 hover:text-outdoor-teal'
           }`}
-          aria-label="Mapa s trasou a body"
+          aria-label="Přehled cesty"
         >
-          <Map className="w-5 h-5 mb-0.5" />
-          <span className="text-[11px] tracking-tight">Mapa</span>
+          <LayoutDashboard className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px] tracking-tight">Přehled</span>
         </button>
 
         {/* Plán */}
         <button
           onClick={() => onSelectTab('plan')}
-          className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${
+          className={`flex flex-col items-center justify-center w-12 h-full transition-colors ${
             activeTab === 'plan'
               ? 'text-outdoor-teal dark:text-outdoor-dark-route font-bold'
               : 'text-outdoor-text-secondary dark:text-stone-400 hover:text-outdoor-teal'
@@ -44,39 +43,41 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           aria-label="Itinerář cesty"
         >
           <Calendar className="w-5 h-5 mb-0.5" />
-          <span className="text-[11px] tracking-tight">Plán</span>
+          <span className="text-[10px] tracking-tight">Itinerář</span>
         </button>
 
-        {/* Floating Quick Add Button (Thumb Zone) */}
-        <div className="relative -top-5 flex flex-col items-center">
-          <button
-            onClick={onQuickAdd}
-            className="w-13 h-13 w-12 h-12 rounded-full bg-outdoor-teal text-white flex items-center justify-center shadow-lg hover:bg-outdoor-teal-dark active:scale-95 transition-all focus:outline-none focus:ring-4 focus:ring-outdoor-teal/30"
-            aria-label="Rychle přidat bod zájmu"
-            title="Přidat bod (Uložit teď, doplnit později)"
-          >
-            <Plus className="w-6 h-6 stroke-[2.5]" />
-          </button>
-        </div>
-
-        {/* Body */}
+        {/* Mapa */}
         <button
-          onClick={() => onSelectTab('pois')}
-          className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${
-            activeTab === 'pois'
+          onClick={() => onSelectTab('map')}
+          className={`flex flex-col items-center justify-center w-12 h-full transition-colors ${
+            activeTab === 'map'
               ? 'text-outdoor-teal dark:text-outdoor-dark-route font-bold'
               : 'text-outdoor-text-secondary dark:text-stone-400 hover:text-outdoor-teal'
           }`}
-          aria-label="Seznam všech bodů"
+          aria-label="Mapa s trasou a body"
         >
-          <MapPin className="w-5 h-5 mb-0.5" />
-          <span className="text-[11px] tracking-tight">Body</span>
+          <Map className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px] tracking-tight">Mapa</span>
+        </button>
+
+        {/* Rozpočet */}
+        <button
+          onClick={() => onSelectTab('budget')}
+          className={`flex flex-col items-center justify-center w-12 h-full transition-colors ${
+            activeTab === 'budget'
+              ? 'text-outdoor-teal dark:text-outdoor-dark-route font-bold'
+              : 'text-outdoor-text-secondary dark:text-stone-400 hover:text-outdoor-teal'
+          }`}
+          aria-label="Rozpočet cesty"
+        >
+          <DollarSign className="w-5 h-5 mb-0.5" />
+          <span className="text-[10px] tracking-tight">Rozpočet</span>
         </button>
 
         {/* Dnes */}
         <button
           onClick={() => onSelectTab('today')}
-          className={`flex flex-col items-center justify-center w-14 h-full transition-colors ${
+          className={`flex flex-col items-center justify-center w-12 h-full transition-colors ${
             activeTab === 'today'
               ? 'text-outdoor-coral dark:text-outdoor-coral font-bold'
               : 'text-outdoor-text-secondary dark:text-stone-400 hover:text-outdoor-coral'
@@ -84,7 +85,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           aria-label="Režim Dnes v terénu"
         >
           <Sparkles className="w-5 h-5 mb-0.5" />
-          <span className="text-[11px] tracking-tight">Dnes</span>
+          <span className="text-[10px] tracking-tight">Dnes</span>
         </button>
 
         {/* Near me floating quick chip */}

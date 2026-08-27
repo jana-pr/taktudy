@@ -13,12 +13,16 @@ interface NewTripModalProps {
     endDate?: string;
     routeUrl?: string;
   }) => Promise<void>;
+  onOpenAiPropose?: () => void;
+  onOpenImport?: () => void;
 }
 
 export const NewTripModal: React.FC<NewTripModalProps> = ({
   isOpen,
   onClose,
   onCreateTrip,
+  onOpenAiPropose,
+  onOpenImport,
 }) => {
   const [title, setTitle] = useState('');
   const [motto, setMotto] = useState('');
@@ -89,6 +93,47 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
           </button>
         </div>
 
+        {/* Quick Assistant Cards */}
+        <div className="p-4 bg-gray-50 dark:bg-gray-800/60 border-b border-gray-100 dark:border-gray-700 grid grid-cols-2 gap-2">
+          {onOpenAiPropose && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenAiPropose();
+              }}
+              className="p-3 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/30 dark:hover:bg-purple-900/40 border border-purple-200 dark:border-purple-800/50 rounded-xl text-left transition-all group"
+            >
+              <div className="flex items-center gap-1.5 text-purple-700 dark:text-purple-300 font-bold text-xs">
+                <Sparkles className="w-3.5 h-3.5" />
+                Navrhni mi trasu
+              </div>
+              <div className="text-[10px] text-purple-600/80 dark:text-purple-400 mt-0.5">
+                AI vytvoří trasu na míru
+              </div>
+            </button>
+          )}
+
+          {onOpenImport && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenImport();
+              }}
+              className="p-3 bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/30 dark:hover:bg-teal-900/40 border border-teal-200 dark:border-teal-800/50 rounded-xl text-left transition-all group"
+            >
+              <div className="flex items-center gap-1.5 text-teal-700 dark:text-teal-300 font-bold text-xs">
+                <Map className="w-3.5 h-3.5" />
+                Importovat trasu
+              </div>
+              <div className="text-[10px] text-teal-600/80 dark:text-teal-400 mt-0.5">
+                GPX, KML nebo JSON
+              </div>
+            </button>
+          )}
+        </div>
+
         {error && (
           <div className="p-3 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 text-xs border-b border-red-200 dark:border-red-900">
             {error}
@@ -96,6 +141,10 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+            Nebo zadejte údaje ručně:
+          </div>
+
           {/* Název cesty */}
           <div>
             <label className="block text-xs font-bold text-stone-600 dark:text-stone-300 mb-1">

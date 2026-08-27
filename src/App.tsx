@@ -4,8 +4,12 @@ import { tripsApi, poiApi, categoriesApi, authApi, syncApi } from './api/client'
 import { offlineDb } from './offline/db';
 import { Navbar } from './components/Navbar';
 import { BottomNav, TabType } from './components/BottomNav';
+import { OverviewView } from './components/OverviewView';
 import { MapView } from './components/MapView';
 import { PlanView } from './components/PlanView';
+import { AccommodationsView } from './components/AccommodationsView';
+import { BookingsView } from './components/BookingsView';
+import { BudgetView } from './components/BudgetView';
 import { PoiListView } from './components/PoiListView';
 import { TodayView } from './components/TodayView';
 import { NearMeModal } from './components/NearMeModal';
@@ -15,9 +19,22 @@ import { OfflineChecklistModal } from './components/OfflineChecklistModal';
 import { ShareModal } from './components/ShareModal';
 import { NewTripModal } from './components/NewTripModal';
 import { EditTripModal } from './components/EditTripModal';
+import { TripProposalModal } from './components/TripProposalModal';
+import { RouteOptimizationModal } from './components/RouteOptimizationModal';
+import { ImportRouteModal } from './components/ImportRouteModal';
 import { SharedTripView } from './components/SharedTripView';
 import { AuthModal } from './components/AuthModal';
-import { Loader2 } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Calendar,
+  Map,
+  Bed,
+  FileText,
+  DollarSign,
+  Sparkles,
+  MapPin,
+  Loader2,
+} from 'lucide-react';
 
 export function App() {
   // Check URL hash for shared trip
@@ -38,8 +55,9 @@ export function App() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Navigation State
-  const [activeTab, setActiveTab] = useState<TabType>('map');
+  // Navigation State - defaults to 'overview' for rich trip experience
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [selectedMapDayId, setSelectedMapDayId] = useState<string | null>(null);
 
   // Filter State for Map
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -53,6 +71,9 @@ export function App() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isNewTripModalOpen, setIsNewTripModalOpen] = useState(false);
   const [isEditTripModalOpen, setIsEditTripModalOpen] = useState(false);
+  const [isAiProposeOpen, setIsAiProposeOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isOptimizeModalOpen, setIsOptimizeModalOpen] = useState(false);
   const [mapClickCoords, setMapClickCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Theme & Offline Status
@@ -112,6 +133,17 @@ export function App() {
     }
   };
 
+  // Reload current active trip
+  const refreshActiveTrip = async () => {
+    if (!activeTrip) return;
+    try {
+      const refreshed = await tripsApi.get(activeTrip.id);
+      setActiveTrip(refreshed);
+    } catch (err) {
+      console.error('Chyba při obnově cesty:', err);
+    }
+  };
+
   // Load Trips and Categories
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -125,7 +157,10 @@ export function App() {
       setCategories(catsData);
 
       if (tripsData.length > 0) {
-        const full = await tripsApi.get(tripsData[0].id);
+        // Find Sri Lanka 2026 trip if available or take first
+        const sriLankaTrip = tripsData.find((t) => t.id === 'trip_srilanka_2026');
+        const defaultTrip = sriLankaTrip || tripsData[0];
+        const full = await tripsApi.get(defaultTrip.id);
         setActiveTrip(full);
       }
     } catch (err) {
@@ -154,113 +189,28 @@ export function App() {
     );
   }
 
-  // If not logged in, show Auth
+  // Not authenticated
   if (!isAuthenticated) {
     return (
       <AuthModal
-        onSuccess={() => {
+        onAuthSuccess={() => {
           setIsAuthenticated(true);
+          loadData();
         }}
       />
     );
   }
 
-  // Switch trip
   const handleSelectTrip = async (trip: Trip) => {
-    setLoading(true);
     try {
+      setLoading(true);
       const full = await tripsApi.get(trip.id);
       setActiveTrip(full);
+    } catch (err) {
+      console.error('Chyba při načítání cesty:', err);
     } finally {
       setLoading(false);
     }
-  };
-
-  // POI Operations
-  const handleToggleTop = async (poiId: string) => {
-    if (!activeTrip) return;
-    const target = activeTrip.pois.find((p) => p.id === poiId);
-    if (!target) return;
-
-    // Optimistic UI update
-    const nextTop = !target.is_top;
-    setActiveTrip({
-      ...activeTrip,
-      pois: activeTrip.pois.map((p) => (p.id === poiId ? { ...p, is_top: nextTop } : p)),
-    });
-
-    if (selectedPoi && selectedPoi.id === poiId) {
-      setSelectedPoi({ ...selectedPoi, is_top: nextTop });
-    }
-
-    try {
-      await poiApi.toggleTop(activeTrip.id, poiId);
-    } catch {
-      await poiApi.update(activeTrip.id, poiId, { is_top: nextTop });
-      await updatePendingCount();
-    }
-  };
-
-  const handleToggleVisit = async (poiId: string, currentStatus: string) => {
-    if (!activeTrip) return;
-    const nextStatus = currentStatus === 'visited' ? 'unvisited' : 'visited';
-
-    setActiveTrip({
-      ...activeTrip,
-      pois: activeTrip.pois.map((p) => (p.id === poiId ? { ...p, visit_status: nextStatus } : p)),
-    });
-
-    if (selectedPoi && selectedPoi.id === poiId) {
-      setSelectedPoi({ ...selectedPoi, visit_status: nextStatus });
-    }
-
-    try {
-      await poiApi.updateVisitStatus(activeTrip.id, poiId, nextStatus);
-    } catch {
-      await poiApi.update(activeTrip.id, poiId, { visit_status: nextStatus });
-      await updatePendingCount();
-    }
-  };
-
-  const handleDeletePoi = async (poiId: string) => {
-    if (!activeTrip) return;
-    setActiveTrip({
-      ...activeTrip,
-      pois: activeTrip.pois.filter((p) => p.id !== poiId),
-    });
-    await poiApi.delete(activeTrip.id, poiId);
-    await updatePendingCount();
-  };
-
-  const handleSavePoiEdit = async (poiId: string, updatedData: Partial<POI>) => {
-    if (!activeTrip) return;
-    setActiveTrip({
-      ...activeTrip,
-      pois: activeTrip.pois.map((p) => (p.id === poiId ? { ...p, ...updatedData } : p)),
-    });
-    if (selectedPoi && selectedPoi.id === poiId) {
-      setSelectedPoi({ ...selectedPoi, ...updatedData });
-    }
-    await poiApi.update(activeTrip.id, poiId, updatedData);
-    await updatePendingCount();
-  };
-
-  const handleAddPoi = async (poiData: Partial<POI>) => {
-    if (!activeTrip) return;
-    const created = await poiApi.create(activeTrip.id, poiData);
-    setActiveTrip({
-      ...activeTrip,
-      pois: [...activeTrip.pois, created],
-    });
-    await updatePendingCount();
-  };
-
-  const handleOpenExternalNav = (poi: POI) => {
-    const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const url = isIos
-      ? `maps://?q=${encodeURIComponent(poi.name)}&ll=${poi.lat},${poi.lng}`
-      : `https://www.google.com/maps/dir/?api=1&destination=${poi.lat},${poi.lng}`;
-    window.open(url, '_blank');
   };
 
   const handleCreateTrip = async (data: {
@@ -272,53 +222,99 @@ export function App() {
     routeUrl?: string;
   }) => {
     const created = await tripsApi.create(data);
-    const updatedTrips = await tripsApi.list();
-    setTrips(updatedTrips);
+    await loadData();
     const full = await tripsApi.get(created.id);
     setActiveTrip(full);
+    setActiveTab('overview');
   };
 
-  const handleUpdateTrip = async (tripId: string, data: Partial<FullTrip>) => {
-    await tripsApi.update(tripId, data);
-    const updatedTrips = await tripsApi.list();
-    setTrips(updatedTrips);
-    const full = await tripsApi.get(tripId);
-    setActiveTrip(full);
-  };
-
-  const handleDeleteTrip = async (tripId: string) => {
-    await tripsApi.delete(tripId);
-    const updatedTrips = await tripsApi.list();
-    setTrips(updatedTrips);
-    if (updatedTrips.length > 0) {
-      const nextTrip = await tripsApi.get(updatedTrips[0].id);
-      setActiveTrip(nextTrip);
-    } else {
-      setActiveTrip(null);
+  const handleTripCreatedFromAiOrImport = async (tripId: string) => {
+    await loadData();
+    try {
+      const full = await tripsApi.get(tripId);
+      setActiveTrip(full);
+      setActiveTab('overview');
+    } catch (err) {
+      console.error('Chyba při otevření vytvořené cesty:', err);
     }
   };
 
-  const handleDuplicateTrip = async (tripId: string) => {
-    const res = await tripsApi.duplicate(tripId);
-    const updatedTrips = await tripsApi.list();
-    setTrips(updatedTrips);
+  const handleUpdateTrip = async (data: Partial<Trip>) => {
+    if (!activeTrip) return;
+    await tripsApi.update(activeTrip.id, data);
+    await loadData();
+    const refreshed = await tripsApi.get(activeTrip.id);
+    setActiveTrip(refreshed);
+  };
+
+  const handleDuplicateTrip = async () => {
+    if (!activeTrip) return;
+    const res = await tripsApi.duplicate(activeTrip.id);
+    await loadData();
     const full = await tripsApi.get(res.id);
     setActiveTrip(full);
+  };
+
+  const handleDeleteTrip = async () => {
+    if (!activeTrip) return;
+    await tripsApi.delete(activeTrip.id);
+    await loadData();
   };
 
   const handleAddStage = async (title: string) => {
     if (!activeTrip) return;
     await tripsApi.addStage(activeTrip.id, { title });
-    const full = await tripsApi.get(activeTrip.id);
-    setActiveTrip(full);
+    const refreshed = await tripsApi.get(activeTrip.id);
+    setActiveTrip(refreshed);
   };
 
   const handleMovePoiStage = async (poiId: string, stageId: string | null) => {
     if (!activeTrip) return;
     await poiApi.update(activeTrip.id, poiId, { stage_id: stageId });
-    const full = await tripsApi.get(activeTrip.id);
-    setActiveTrip(full);
-    await updatePendingCount();
+    const refreshed = await tripsApi.get(activeTrip.id);
+    setActiveTrip(refreshed);
+  };
+
+  const handleToggleTop = async (poiId: string, currentTop: boolean) => {
+    if (!activeTrip) return;
+    await poiApi.update(activeTrip.id, poiId, { is_top: !currentTop });
+    const refreshed = await tripsApi.get(activeTrip.id);
+    setActiveTrip(refreshed);
+  };
+
+  const handleToggleVisit = async (poiId: string, currentStatus: string) => {
+    if (!activeTrip) return;
+    const nextStatus = currentStatus === 'visited' ? 'unvisited' : 'visited';
+    await poiApi.update(activeTrip.id, poiId, { visit_status: nextStatus as any });
+    const refreshed = await tripsApi.get(activeTrip.id);
+    setActiveTrip(refreshed);
+  };
+
+  const handleDeletePoi = async (poiId: string) => {
+    if (!activeTrip) return;
+    await poiApi.delete(activeTrip.id, poiId);
+    setSelectedPoi(null);
+    const refreshed = await tripsApi.get(activeTrip.id);
+    setActiveTrip(refreshed);
+  };
+
+  const handleSavePoiEdit = async (poiId: string, updates: Partial<POI>) => {
+    if (!activeTrip) return;
+    await poiApi.update(activeTrip.id, poiId, updates);
+    const refreshed = await tripsApi.get(activeTrip.id);
+    setActiveTrip(refreshed);
+    if (selectedPoi && selectedPoi.id === poiId) {
+      setSelectedPoi({ ...selectedPoi, ...updates });
+    }
+  };
+
+  const handleAddPoi = async (poiData: Partial<POI>) => {
+    if (!activeTrip) return;
+    await poiApi.create(activeTrip.id, poiData);
+    setIsQuickAddOpen(false);
+    setMapClickCoords(null);
+    const refreshed = await tripsApi.get(activeTrip.id);
+    setActiveTrip(refreshed);
   };
 
   const handleMapClick = (coords: { lat: number; lng: number }) => {
@@ -326,24 +322,30 @@ export function App() {
     setIsQuickAddOpen(true);
   };
 
+  const handleOpenExternalNav = (lat: number, lng: number) => {
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
+  };
+
   const handleLogout = () => {
     authApi.logout();
     setIsAuthenticated(false);
+    setTrips([]);
+    setActiveTrip(null);
   };
 
   if (loading && !activeTrip) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-outdoor-bg dark:bg-outdoor-dark-bg p-4 text-center">
-        <Loader2 className="w-8 h-8 animate-spin text-outdoor-teal mb-3" />
-        <p className="font-heading font-bold text-outdoor-text dark:text-white">
-          Načítám tvé cesty...
+      <div className="min-h-screen flex flex-col items-center justify-center bg-outdoor-bg dark:bg-outdoor-dark-bg">
+        <Loader2 className="w-8 h-8 text-outdoor-teal animate-spin mb-3" />
+        <p className="text-sm font-semibold text-outdoor-text dark:text-stone-300">
+          Načítám Tak tudy!...
         </p>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen flex flex-col bg-outdoor-bg dark:bg-outdoor-dark-bg transition-colors ${isDarkMode ? 'dark' : ''}`}>
+    <div className={`min-h-screen flex flex-col bg-stone-50 dark:bg-gray-900 transition-colors ${isDarkMode ? 'dark' : ''}`}>
       {/* Top Navbar */}
       <Navbar
         trips={trips}
@@ -361,116 +363,194 @@ export function App() {
         onLogout={handleLogout}
       />
 
+      {/* Sub-Header Tabs (Section 15: Přehled | Itinerář | Mapa | Ubytování | Rezervace | Rozpočet + Dnes) */}
+      {activeTrip && (
+        <div className="sticky top-16 z-30 bg-white/95 dark:bg-gray-800/95 backdrop-blur border-b border-gray-200 dark:border-gray-700 shadow-xs">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-12 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+            {/* 6 Main Tabs */}
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeTab === 'overview'
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
+                }`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                <span>Přehled</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('plan')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeTab === 'plan'
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Itinerář</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('map')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeTab === 'map'
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
+                }`}
+              >
+                <Map className="w-3.5 h-3.5" />
+                <span>Mapa</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('accommodations')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeTab === 'accommodations'
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
+                }`}
+              >
+                <Bed className="w-3.5 h-3.5" />
+                <span>Ubytování</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('bookings')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeTab === 'bookings'
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Rezervace</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('budget')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  activeTab === 'budget'
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
+                }`}
+              >
+                <DollarSign className="w-3.5 h-3.5" />
+                <span>Rozpočet</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('pois')}
+                className={`hidden md:flex px-3 py-1.5 rounded-xl text-xs font-bold transition-all items-center gap-1.5 ${
+                  activeTab === 'pois'
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/60'
+                }`}
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                <span>Místa ({activeTrip.pois?.length || 0})</span>
+              </button>
+            </div>
+
+            {/* Prominent "Dnes" button (Section 16) */}
+            <div className="shrink-0">
+              <button
+                onClick={() => setActiveTab('today')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-sm ${
+                  activeTab === 'today'
+                    ? 'bg-rose-600 text-white ring-2 ring-rose-400'
+                    : 'bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+                <span>DNES</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content Area */}
       <main className="flex-1 w-full relative">
         {activeTrip ? (
-          <>
-            {/* Desktop 2-column or Multi-view layout */}
-            <div className="hidden lg:grid lg:grid-cols-12 h-[calc(100vh-4rem)]">
-              {/* Left Context Side: Plan & Today tabs */}
-              <div className="lg:col-span-5 h-full overflow-y-auto border-r border-stone-200 dark:border-stone-800 bg-white/50 dark:bg-outdoor-dark-card/50">
-                <div className="p-4 border-b border-stone-200 dark:border-stone-800 flex items-center gap-2">
-                  <button
-                    onClick={() => setActiveTab('plan')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                      activeTab === 'plan' ? 'bg-outdoor-teal text-white shadow' : 'text-stone-500 hover:text-stone-800'
-                    }`}
-                  >
-                    Plán a dny
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('today')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                      activeTab === 'today' ? 'bg-outdoor-coral text-white shadow' : 'text-stone-500 hover:text-stone-800'
-                    }`}
-                  >
-                    Režim Dnes
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('pois')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                      activeTab === 'pois' ? 'bg-outdoor-teal text-white shadow' : 'text-stone-500 hover:text-stone-800'
-                    }`}
-                  >
-                    Seznam bodů ({activeTrip.pois?.length || 0})
-                  </button>
-                </div>
-
-                {activeTab === 'today' ? (
-                  <TodayView
-                    trip={activeTrip}
-                    onSelectPoi={setSelectedPoi}
-                    onOpenExternalNavigation={handleOpenExternalNav}
-                  />
-                ) : activeTab === 'pois' ? (
-                  <PoiListView
-                    pois={activeTrip.pois || []}
-                    categories={categories}
-                    onSelectPoi={setSelectedPoi}
-                    onToggleTop={handleToggleTop}
-                    onToggleVisit={handleToggleVisit}
-                    onOpenQuickAdd={() => setIsQuickAddOpen(true)}
-                  />
-                ) : (
-                  <PlanView
-                    trip={activeTrip}
-                    onSelectPoi={setSelectedPoi}
-                    onToggleVisit={handleToggleVisit}
-                    onOpenQuickAdd={() => setIsQuickAddOpen(true)}
-                    onOpenEditTrip={() => setIsEditTripModalOpen(true)}
-                    onAddStage={handleAddStage}
-                    onMovePoiStage={handleMovePoiStage}
-                  />
-                )}
-              </div>
-
-              {/* Right Side: Dominant Map View */}
-              <div className="lg:col-span-7 h-full relative">
-                <MapView
-                  pois={activeTrip.pois || []}
-                  categories={categories}
-                  selectedCategory={selectedCategory}
-                  onSelectCategory={setSelectedCategory}
-                  onlyTop={onlyTop}
-                  onToggleOnlyTop={() => setOnlyTop(!onlyTop)}
-                  onSelectPoi={setSelectedPoi}
-                  onMapClick={handleMapClick}
-                  onOpenQuickAdd={() => setIsQuickAddOpen(true)}
-                  isDarkMode={isDarkMode}
-                />
-              </div>
-            </div>
-
-            {/* Mobile View (Tab-based for iPhone 12 mini) */}
-            <div className="lg:hidden w-full">
-              {activeTab === 'map' && (
-                <MapView
-                  pois={activeTrip.pois || []}
-                  categories={categories}
-                  selectedCategory={selectedCategory}
-                  onSelectCategory={setSelectedCategory}
-                  onlyTop={onlyTop}
-                  onToggleOnlyTop={() => setOnlyTop(!onlyTop)}
-                  onSelectPoi={setSelectedPoi}
-                  onMapClick={handleMapClick}
-                  onOpenQuickAdd={() => setIsQuickAddOpen(true)}
-                  isDarkMode={isDarkMode}
-                />
-              )}
-
-              {activeTab === 'plan' && (
-                <PlanView
+          <div className="w-full h-full">
+            {activeTab === 'overview' && (
+              <div className="p-4 sm:p-6">
+                <OverviewView
                   trip={activeTrip}
-                  onSelectPoi={setSelectedPoi}
-                  onToggleVisit={handleToggleVisit}
+                  onSelectDay={(dayId) => {
+                    setActiveTab('plan');
+                    setTimeout(() => {
+                      const el = document.getElementById(`day-${dayId}`);
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }, 100);
+                  }}
+                  onNavigateToPoi={setSelectedPoi}
                   onOpenQuickAdd={() => setIsQuickAddOpen(true)}
-                  onOpenEditTrip={() => setIsEditTripModalOpen(true)}
-                  onAddStage={handleAddStage}
-                  onMovePoiStage={handleMovePoiStage}
                 />
-              )}
+              </div>
+            )}
 
-              {activeTab === 'pois' && (
+            {activeTab === 'plan' && (
+              <PlanView
+                trip={activeTrip}
+                onSelectPoi={setSelectedPoi}
+                onToggleVisit={handleToggleVisit}
+                onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+                onOpenEditTrip={() => setIsEditTripModalOpen(true)}
+                onOpenOptimize={() => setIsOptimizeModalOpen(true)}
+                onAddStage={handleAddStage}
+                onMovePoiStage={handleMovePoiStage}
+                onTripUpdated={refreshActiveTrip}
+              />
+            )}
+
+            {activeTab === 'map' && (
+              <MapView
+                pois={activeTrip.pois || []}
+                categories={categories}
+                days={activeTrip.days || []}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+                selectedDayId={selectedMapDayId}
+                onSelectDayId={setSelectedMapDayId}
+                onlyTop={onlyTop}
+                onToggleOnlyTop={() => setOnlyTop(!onlyTop)}
+                onSelectPoi={setSelectedPoi}
+                onMapClick={handleMapClick}
+                onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+                isDarkMode={isDarkMode}
+              />
+            )}
+
+            {activeTab === 'accommodations' && (
+              <div className="p-4 sm:p-6">
+                <AccommodationsView
+                  trip={activeTrip}
+                  onTripUpdated={refreshActiveTrip}
+                />
+              </div>
+            )}
+
+            {activeTab === 'bookings' && (
+              <div className="p-4 sm:p-6">
+                <BookingsView trip={activeTrip} />
+              </div>
+            )}
+
+            {activeTab === 'budget' && (
+              <div className="p-4 sm:p-6">
+                <BudgetView
+                  trip={activeTrip}
+                  onTripUpdated={refreshActiveTrip}
+                />
+              </div>
+            )}
+
+            {activeTab === 'pois' && (
+              <div className="p-4 sm:p-6 max-w-4xl mx-auto">
                 <PoiListView
                   pois={activeTrip.pois || []}
                   categories={categories}
@@ -479,19 +559,21 @@ export function App() {
                   onToggleVisit={handleToggleVisit}
                   onOpenQuickAdd={() => setIsQuickAddOpen(true)}
                 />
-              )}
+              </div>
+            )}
 
-              {activeTab === 'today' && (
+            {activeTab === 'today' && (
+              <div className="p-4 sm:p-6 max-w-3xl mx-auto">
                 <TodayView
                   trip={activeTrip}
                   onSelectPoi={setSelectedPoi}
                   onOpenExternalNavigation={handleOpenExternalNav}
                 />
-              )}
-            </div>
-          </>
+              </div>
+            )}
+          </div>
         ) : (
-          <div className="text-center py-20 text-stone-400">
+          <div className="text-center py-20 text-gray-400">
             Zatím nemáš žádnou cestu. Vytvoř novou cestu.
           </div>
         )}
@@ -564,15 +646,43 @@ export function App() {
         isOpen={isNewTripModalOpen}
         onClose={() => setIsNewTripModalOpen(false)}
         onCreateTrip={handleCreateTrip}
+        onOpenAiPropose={() => setIsAiProposeOpen(true)}
+        onOpenImport={() => setIsImportModalOpen(true)}
       />
 
-      <EditTripModal
-        trip={activeTrip}
-        isOpen={isEditTripModalOpen}
-        onClose={() => setIsEditTripModalOpen(false)}
-        onUpdateTrip={handleUpdateTrip}
-        onDuplicateTrip={handleDuplicateTrip}
-        onDeleteTrip={handleDeleteTrip}
+      {activeTrip && (
+        <EditTripModal
+          trip={activeTrip}
+          isOpen={isEditTripModalOpen}
+          onClose={() => setIsEditTripModalOpen(false)}
+          onUpdateTrip={handleUpdateTrip}
+          onDuplicateTrip={handleDuplicateTrip}
+          onDeleteTrip={handleDeleteTrip}
+        />
+      )}
+
+      {/* AI Proposal Modal */}
+      <TripProposalModal
+        isOpen={isAiProposeOpen}
+        onClose={() => setIsAiProposeOpen(false)}
+        onTripCreated={handleTripCreatedFromAiOrImport}
+      />
+
+      {/* Route Optimization Modal */}
+      {activeTrip && (
+        <RouteOptimizationModal
+          isOpen={isOptimizeModalOpen}
+          onClose={() => setIsOptimizeModalOpen(false)}
+          tripId={activeTrip.id}
+          onApplyOptimization={refreshActiveTrip}
+        />
+      )}
+
+      {/* Route Import Modal (GPX, KML, JSON) */}
+      <ImportRouteModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onTripImported={handleTripCreatedFromAiOrImport}
       />
     </div>
   );

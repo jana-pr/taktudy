@@ -38,6 +38,14 @@ export interface POI {
   time_mode: TimeMode;
   target_time?: string | null;
   visit_status: VisitStatus;
+  is_mandatory?: boolean;
+  is_enabled?: boolean;
+  why_visit?: string | null;
+  recommended_duration?: string | null;
+  cost_est?: number;
+  cost_currency?: string;
+  cost_category?: 'tickets' | 'safari' | 'activities' | 'transport' | 'food' | 'other';
+  data_origin?: 'user' | 'imported' | 'ai_completed' | 'needs_completion';
   notification_config?: {
     geofence_meters?: number;
     time_lead_minutes?: number;
@@ -73,6 +81,13 @@ export interface Day {
   title: string;
   notes?: string;
   has_detail: boolean;
+  start_location?: string | null;
+  overnight_location?: string | null;
+  transit_time_est?: string | null;
+  distance_km?: number;
+  transport_mode?: string | null;
+  recommended_departure?: string | null;
+  activities?: string | null;
   version: number;
 }
 
@@ -85,12 +100,52 @@ export interface SubRoute {
   version: number;
 }
 
+export interface Accommodation {
+  id: string;
+  trip_id: string;
+  day_id?: string | null;
+  hotel_name: string;
+  location?: string | null;
+  booking_url?: string | null;
+  price_total: number;
+  price_single?: number;
+  price_currency: string;
+  rooms_count: number;
+  room_type?: string | null;
+  breakfast_included: boolean;
+  cancellation_policy?: string | null;
+  booking_status: 'confirmed' | 'pending' | 'reserved' | 'optional';
+  booking_reference?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface TransportService {
+  id: string;
+  trip_id: string;
+  service_name: string;
+  provider?: string | null;
+  total_price: number;
+  currency: string;
+  includes_description?: string | null;
+  split_between: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Trip {
   id: string;
   owner_id: string;
   title: string;
   motto?: string | null;
   status: TripStatus;
+  country_region?: string | null;
+  travelers_count?: number;
+  primary_transport?: string | null;
+  room_scenario?: '2+1' | 'triple';
+  budget_currency?: string;
+  notes?: string | null;
   start_date?: string | null;
   end_date?: string | null;
   bounding_box?: [number, number, number, number] | null;
@@ -107,6 +162,8 @@ export interface FullTrip extends Trip {
   days: Day[];
   subRoutes: SubRoute[];
   pois: POI[];
+  accommodations?: Accommodation[];
+  transportServices?: TransportService[];
   isReadOnly?: boolean;
 }
 
