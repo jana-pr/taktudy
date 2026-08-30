@@ -47,10 +47,10 @@ export const MobileAppModal: React.FC<MobileAppModalProps> = ({ isOpen, onClose 
             </div>
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
-                Do mobilu
+                Vstup pro správce
               </span>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                Mobilní aplikace Tak Tudy!
+                Plná verze pro mobil
               </h2>
             </div>
           </div>

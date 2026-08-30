@@ -259,6 +259,7 @@ export function initDatabase() {
       lng REAL,
       notes TEXT,
       source_url TEXT,
+      photo_url TEXT,
       is_used INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -324,6 +325,7 @@ function runMigrations() {
 
     'ALTER TABLE accommodations ADD COLUMN lat REAL;',
     'ALTER TABLE accommodations ADD COLUMN lng REAL;',
+    'ALTER TABLE tips ADD COLUMN photo_url TEXT;',
   ];
 
   for (const sql of migrations) {

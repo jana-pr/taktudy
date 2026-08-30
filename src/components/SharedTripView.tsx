@@ -24,6 +24,8 @@ export const SharedTripView: React.FC<SharedTripViewProps> = ({ shareToken, onEx
   const [detailPoi, setDetailPoi] = useState<POI | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
+  const [hasEntered, setHasEntered] = useState(false);
+
   useEffect(() => {
     const loadSharedData = async () => {
       setLoading(true);
@@ -74,6 +76,43 @@ export const SharedTripView: React.FC<SharedTripViewProps> = ({ shareToken, onEx
         >
           Přejít na hlavní stránku
         </button>
+      </div>
+    );
+  }
+
+  // Welcome Gate Screen for shared QR code access
+  if (!hasEntered) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-outdoor-teal-dark via-teal-900 to-stone-900 p-6 text-center text-white">
+        <div className="max-w-md w-full bg-white/10 backdrop-blur-md border border-white/20 p-8 rounded-3xl shadow-2xl space-y-6 animate-fade-in">
+          <div className="w-16 h-16 rounded-2xl bg-outdoor-coral mx-auto flex items-center justify-center text-white shadow-lg">
+            <Compass className="w-9 h-9" />
+          </div>
+
+          <div className="space-y-2">
+            <span className="text-xs font-black uppercase tracking-widest text-teal-300">
+              Tak Tudy!
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-black font-heading leading-tight">
+              Vítej na trase {trip.title}!
+            </h1>
+            {trip.motto && (
+              <p className="text-sm text-teal-200/90 italic">
+                „{trip.motto}“
+              </p>
+            )}
+            <p className="text-xs text-stone-300 pt-2">
+              Byl vám nasdílen kompletní itinerář, mapa bodů zájmu a doporučení k této cestě.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setHasEntered(true)}
+            className="w-full py-3.5 px-6 rounded-2xl bg-outdoor-coral hover:bg-outdoor-coral-dark text-white font-black text-sm uppercase tracking-wider shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+          >
+            <span>Prohlédnout trasu</span>
+          </button>
+        </div>
       </div>
     );
   }

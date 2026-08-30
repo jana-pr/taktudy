@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FullTrip, Day, POI } from '../types';
+import { tripsApi } from '../api/client';
 import {
   Calendar,
   Users,
@@ -15,9 +16,11 @@ import {
   CheckCircle2,
   AlertCircle,
   HelpCircle,
-  Trash2,
-  Settings,
-  Bot,
+  DollarSign,
+  CloudSun,
+  FileText,
+  Save,
+  Check,
 } from 'lucide-react';
 
 interface OverviewViewProps {
@@ -25,10 +28,7 @@ interface OverviewViewProps {
   onSelectDay: (dayId: string) => void;
   onNavigateToPoi: (poi: POI) => void;
   onOpenQuickAdd?: () => void;
-  onOpenExportForChatGpt?: () => void;
-  onOpenEditFromChatGpt?: () => void;
-  onOpenEditTrip?: () => void;
-  onDeleteTrip?: () => void;
+  onTripUpdated?: () => Promise<void>;
 }
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
@@ -36,10 +36,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onSelectDay,
   onNavigateToPoi,
   onOpenQuickAdd,
-  onOpenExportForChatGpt,
-  onOpenEditFromChatGpt,
-  onOpenEditTrip,
-  onDeleteTrip,
+  onTripUpdated,
 }) => {
   const days = trip.days || [];
   const pois = trip.pois || [];
@@ -48,6 +45,43 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const nightsCount = Math.max(0, days.length > 1 ? days.length - 1 : 1);
   const travelersCount = trip.travelers_count || 3;
   const primaryTransport = trip.primary_transport || 'Soukromé auto s řidičem';
+
+  // Weather query region
+  const weatherLocation = trip.country_region || (trip.title ? trip.title.split(' ')[0] : 'Srí Lanka');
+
+  // Budget calculation per person
+  const accommodationsTotal = accommodations.reduce((sum, a) => sum + (a.price_total || 0), 0);
+  const poisCostTotal = pois
+    .filter((p) => p.is_enabled !== false)
+    .reduce((sum, p) => sum + (p.cost_est || 0), 0);
+  const estimatedPerPerson = Math.round(
+    accommodationsTotal / (travelersCount || 1) +
+    poisCostTotal / (travelersCount || 1) +
+    (trip.id === 'trip_srilanka_2026' ? 1040 : 200)
+  );
+
+  // Notes state
+  const [notesText, setNotesText] = useState(trip.notes || '');
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
+
+  useEffect(() => {
+    setNotesText(trip.notes || '');
+  }, [trip.notes]);
+
+  const handleSaveNotes = async () => {
+    try {
+      setIsSavingNotes(true);
+      await tripsApi.update(trip.id, { notes: notesText });
+      setNotesSaved(true);
+      if (onTripUpdated) await onTripUpdated();
+      setTimeout(() => setNotesSaved(false), 2500);
+    } catch (err) {
+      console.error('Chyba při ukládání poznámek:', err);
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
 
   // Helper to open Google Maps day route with waypoint splitting
   const openGoogleMapsDayRoute = (dayPois: POI[], startLoc?: string | null, endLoc?: string | null) => {
@@ -95,11 +129,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </p>
         )}
 
-        {/* 4 Stats Pills */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-4">
+        {/* 3 Stats Pills */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-4">
+          {/* 1. Termín */}
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 border border-white/10">
             <div className="flex items-center gap-2 text-teal-200 text-xs font-medium mb-1">
-              <Calendar className="w-4 h-4" /> Termín
+              <Calendar className="w-4 h-4" /> Termín cesty
             </div>
             <div className="font-semibold text-sm sm:text-base text-white">
               {trip.start_date
@@ -108,78 +143,89 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
           </div>
 
+          {/* 2. Rozpočet na osobu */}
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 border border-white/10">
             <div className="flex items-center gap-2 text-teal-200 text-xs font-medium mb-1">
-              <Users className="w-4 h-4" /> Cestující
+              <DollarSign className="w-4 h-4 text-emerald-300" /> Rozpočet na osobu
             </div>
             <div className="font-semibold text-sm sm:text-base text-white">
-              {travelersCount} dospělí
+              ~${estimatedPerPerson.toLocaleString()} <span className="text-xs font-normal text-teal-200">USD / os.</span>
             </div>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 border border-white/10">
-            <div className="flex items-center gap-2 text-teal-200 text-xs font-medium mb-1">
-              <Moon className="w-4 h-4" /> Noci & Dny
+          {/* 3. Odkaz na počasí na trase (yrno.cz) */}
+          <a
+            href={`https://yrno.cz/plus/pocasi/?query=${encodeURIComponent(weatherLocation)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl p-3.5 border border-white/10 transition-all block group"
+            title="Otevřít předpověď počasí pro tuto oblast na yrno.cz v novém okně"
+          >
+            <div className="flex items-center justify-between text-teal-200 text-xs font-medium mb-1">
+              <span className="flex items-center gap-1.5">
+                <CloudSun className="w-4 h-4 text-amber-300" /> Počasí na trase
+              </span>
+              <ExternalLink className="w-3.5 h-3.5 opacity-75 group-hover:opacity-100 transition-opacity" />
             </div>
-            <div className="font-semibold text-sm sm:text-base text-white">
-              {nightsCount} nocí / {days.length} dní
+            <div className="font-semibold text-sm sm:text-base text-white flex items-center justify-between">
+              <span className="truncate">{weatherLocation}</span>
+              <span className="text-[10px] bg-teal-500/30 text-teal-200 px-2 py-0.5 rounded-full font-bold">yrno.cz ↗</span>
             </div>
-          </div>
+          </a>
+        </div>
 
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 border border-white/10">
-            <div className="flex items-center gap-2 text-teal-200 text-xs font-medium mb-1">
-              <Car className="w-4 h-4" /> Doprava
-            </div>
-            <div className="font-semibold text-xs sm:text-sm text-white truncate" title={primaryTransport}>
-              {primaryTransport}
-            </div>
-          </div>
+        {/* Small note under panel: připravováno pro ... osob */}
+        <div className="text-right text-xs text-teal-200/80 italic mt-3 pr-1 font-medium">
+          Připravováno pro {travelersCount} {travelersCount === 1 ? 'osobu' : travelersCount < 5 ? 'osoby' : 'osob'}
         </div>
       </div>
 
-      {/* Quick Action Bar for ChatGPT round-trip, settings and deletion */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 p-3.5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-2xs">
-        <div className="flex flex-wrap items-center gap-2">
-          {onOpenExportForChatGpt && (
-            <button
-              onClick={onOpenExportForChatGpt}
-              className="px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/60 text-xs font-bold flex items-center gap-1.5 transition-colors"
-            >
-              <Bot className="w-3.5 h-3.5 text-teal-600" />
-              <span>Exportovat pro ChatGPT</span>
-            </button>
-          )}
+      {/* Trip Notes Section (Poznámkový blok pro souhrnné informace a postřehy) */}
+      <div className="bg-white dark:bg-gray-800 rounded-3xl p-5 sm:p-6 border border-gray-100 dark:border-gray-700 shadow-sm space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400">
+              <FileText className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm sm:text-base text-gray-900 dark:text-white">
+                Poznámky a souhrnné informace k cestě
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Prostor pro kopírování kontaktů, letenek, tipů na balení a praktických informací
+              </p>
+            </div>
+          </div>
 
-          {onOpenEditFromChatGpt && (
-            <button
-              onClick={onOpenEditFromChatGpt}
-              className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 text-xs font-bold flex items-center gap-1.5 transition-colors"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-              <span>Upravit trasu z ChatGPT</span>
-            </button>
-          )}
-
-          {onOpenEditTrip && (
-            <button
-              onClick={onOpenEditTrip}
-              className="px-3 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-            >
-              <Settings className="w-3.5 h-3.5" />
-              <span>Nastavení cesty</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleSaveNotes}
+            disabled={isSavingNotes}
+            className="px-3.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all disabled:opacity-50"
+          >
+            {isSavingNotes ? (
+              <span>Ukládám...</span>
+            ) : notesSaved ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-300" />
+                <span>Uloženo!</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-3.5 h-3.5" />
+                <span>Uložit poznámky</span>
+              </>
+            )}
+          </button>
         </div>
 
-        {onDeleteTrip && (
-          <button
-            onClick={onDeleteTrip}
-            className="px-3 py-1.5 rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Smazat cestu</span>
-          </button>
-        )}
+        <textarea
+          value={notesText}
+          onChange={(e) => setNotesText(e.target.value)}
+          placeholder="Sem si můžete psát nebo zkopírovat jakékoliv důležité souhrnné informace, kontakty na průvodce, čísla letů, doporučení či poznámky..."
+          rows={5}
+          className="w-full p-3.5 text-xs sm:text-sm bg-stone-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl text-gray-800 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 resize-y transition-all"
+        />
       </div>
 
       {/* Timeline Section Title */}

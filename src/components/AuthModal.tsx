@@ -64,7 +64,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, onAuthSuccess }
             Tak Tudy!
           </h1>
           <p className="text-xs sm:text-sm text-outdoor-text-secondary dark:text-stone-300 font-medium">
-            „Plánuji, abych měla svobodu.“
+            „Plánuj, abys získal svobodu.“
           </p>
         </div>
 

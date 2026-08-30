@@ -18,11 +18,15 @@ export function setAuthToken(token: string | null) {
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken();
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     'Cache-Control': 'no-cache, no-store, must-revalidate',
     'Pragma': 'no-cache',
     ...(options.headers as Record<string, string>),
   };
+
+  // Only set Content-Type to application/json if there is actually a body to prevent Fastify 400 on empty DELETE/GET
+  if (options.body && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -76,10 +80,49 @@ export const authApi = {
 export const tripsApi = {
   list: async (): Promise<Trip[]> => {
     try {
-      const trips = await request<Trip[]>('/trips');
+      const serverTrips = await request<Trip[]>('/trips');
+      const serverTripIds = new Set(serverTrips.map((t) => t.id));
+
+      // Check if local cache has trips that server is missing (e.g. after Render restart)
+      const localTrips = await offlineDb.cachedTrips.toArray();
+      const missingOnServer = localTrips.filter((lt) => !serverTripIds.has(lt.id));
+
+      if (missingOnServer.length > 0) {
+        console.log(`[TakTudy Auto-Restore] Zjištěno ${missingOnServer.length} lokálních cest chybějících na serveru. Obnovuji...`);
+        for (const missingTrip of missingOnServer) {
+          try {
+            const cachedFull = (await offlineDb.cachedTrips.get(missingTrip.id)) as any;
+            const cachedPois = await offlineDb.cachedPois.where('trip_id').equals(missingTrip.id).toArray();
+            await request('/trips/import', {
+              method: 'POST',
+              body: JSON.stringify({
+                title: missingTrip.title,
+                motto: missingTrip.motto,
+                country_region: missingTrip.country_region,
+                travelers_count: missingTrip.travelers_count,
+                primary_transport: missingTrip.primary_transport,
+                budget_currency: missingTrip.budget_currency,
+                notes: (missingTrip as any).notes,
+                stages: cachedFull?.stages || [],
+                days: cachedFull?.days || [],
+                accommodations: cachedFull?.accommodations || [],
+                bookings: cachedFull?.bookings || [],
+                pois: cachedFull?.pois && cachedFull.pois.length > 0 ? cachedFull.pois : cachedPois,
+              }),
+            });
+          } catch (e) {
+            console.warn('[TakTudy Auto-Restore] Chyba při obnově cesty:', e);
+          }
+        }
+        // Fetch fresh list after restore
+        const refreshedServerTrips = await request<Trip[]>('/trips');
+        await offlineDb.cachedTrips.bulkPut(refreshedServerTrips);
+        return refreshedServerTrips;
+      }
+
       // Cache trips locally
-      await offlineDb.cachedTrips.bulkPut(trips);
-      return trips;
+      await offlineDb.cachedTrips.bulkPut(serverTrips);
+      return serverTrips;
     } catch (err) {
       // Fallback to offline store
       const cached = await offlineDb.cachedTrips.toArray();
@@ -113,10 +156,12 @@ export const tripsApi = {
   },
 
   create: async (data: { title: string; motto?: string; status?: string; startDate?: string; endDate?: string; routeUrl?: string }): Promise<Trip> => {
-    return request<Trip>('/trips', {
+    const created = await request<Trip>('/trips', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    await offlineDb.cachedTrips.put(created);
+    return created;
   },
 
   update: async (id: string, data: Partial<Trip>): Promise<any> => {
@@ -126,7 +171,13 @@ export const tripsApi = {
     });
   },
 
+  getAll: async (): Promise<Trip[]> => {
+    return tripsApi.list();
+  },
+
   delete: async (id: string): Promise<any> => {
+    await offlineDb.cachedTrips.delete(id);
+    await offlineDb.cachedPois.where('trip_id').equals(id).delete();
     return request(`/trips/${id}`, { method: 'DELETE' });
   },
 

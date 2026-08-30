@@ -212,6 +212,7 @@ export interface Tip {
   lng?: number | null;
   notes?: string | null;
   source_url?: string | null;
+  photo_url?: string | null;
   is_used: boolean | number;
   category_label?: string;
   category_icon?: string;

@@ -18,6 +18,8 @@ import {
   Sparkles,
   Download,
   RefreshCw,
+  X,
+  Lightbulb,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -33,6 +35,7 @@ interface NavbarProps {
   onOpenShare: () => void;
   onOpenOfflineChecklist: () => void;
   onOpenQrModal?: () => void;
+  onOpenTips?: () => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   isOnline: boolean;
@@ -55,6 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenShare,
   onOpenOfflineChecklist,
   onOpenQrModal,
+  onOpenTips,
   isDarkMode,
   onToggleDarkMode,
   pendingSyncCount,
@@ -74,18 +78,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1">
-              <span className="font-heading font-extrabold text-base sm:text-xl tracking-tight text-outdoor-teal-dark dark:text-white truncate">
+              <span className="font-heading font-extrabold text-sm sm:text-xl tracking-tight text-outdoor-teal-dark dark:text-white truncate">
                 Tak Tudy!
               </span>
             </div>
             <p className="text-[10px] sm:text-xs text-outdoor-text-secondary dark:text-outdoor-dark-secondary truncate hidden sm:block font-medium">
-              „Plánuji, abych měla svobodu.“
+              „Plánuj, abys získal svobodu.“
             </p>
           </div>
         </div>
 
         {/* Trip Selector Dropdown & "Správa" Menu */}
-        <div className="flex-1 min-w-0 max-w-[170px] xs:max-w-[220px] sm:max-w-xs mx-1 sm:mx-2 flex items-center gap-1 sm:gap-1.5">
+        <div className="flex-1 min-w-0 max-w-[130px] xs:max-w-[170px] sm:max-w-xs mx-1 sm:mx-2 flex items-center gap-1 sm:gap-1.5">
           {trips.length > 0 && (
             <select
               value={activeTrip?.id || ''}
@@ -104,7 +108,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </select>
           )}
 
-          {/* "Správa" Dropdown Menu (export, upravit, nastavit, smazat) */}
+          {/* "Správa" Dropdown / Modal Menu (export, upravit, nastavit, smazat) */}
           {activeTrip && (
             <div className="relative shrink-0">
               <button
@@ -123,18 +127,29 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <ChevronDown className={`w-3 h-3 transition-transform ${isManageOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              {/* Dropdown Menu */}
+              {/* Dropdown Menu / Full mobile overlay */}
               {isManageOpen && (
                 <>
                   {/* Backdrop for click outside */}
                   <div
-                    className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[1px]"
+                    className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs"
                     onClick={() => setIsManageOpen(false)}
                   />
 
-                  <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-64 bg-white dark:bg-outdoor-dark-card rounded-2xl shadow-2xl border border-stone-200 dark:border-stone-700 py-1.5 z-50 animate-fade-in text-xs">
-                    <div className="px-3.5 py-1.5 border-b border-stone-100 dark:border-stone-800 text-[10px] font-bold uppercase tracking-wider text-stone-400 truncate">
-                      Správa cesty: <span className="text-stone-700 dark:text-stone-200">{activeTrip.title}</span>
+                  <div className="fixed inset-x-3 top-16 sm:top-auto sm:bottom-auto sm:absolute sm:left-auto sm:right-0 sm:mt-2 max-w-sm sm:w-80 mx-auto bg-white dark:bg-outdoor-dark-card rounded-3xl sm:rounded-2xl shadow-2xl border border-stone-200 dark:border-stone-700 p-2 z-50 animate-fade-in text-xs max-h-[85vh] overflow-y-auto">
+                    {/* Header with Close X */}
+                    <div className="px-3.5 py-2.5 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-stone-500 dark:text-stone-400 truncate pr-2">
+                        Správa cesty: <span className="text-stone-900 dark:text-white font-black">{activeTrip.title}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsManageOpen(false)}
+                        className="p-1.5 rounded-full hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition-colors shrink-0"
+                        aria-label="Zavřít nabídku správy"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
 
                     {/* 0. Synchronizovat s webem */}
@@ -144,7 +159,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         setIsManageOpen(false);
                         onTriggerSync();
                       }}
-                      className="w-full px-3.5 py-2.5 text-left bg-teal-50/70 dark:bg-teal-950/50 hover:bg-teal-100/80 dark:hover:bg-teal-900/60 text-teal-800 dark:text-teal-200 font-bold flex items-center gap-2.5 transition-colors border-b border-stone-100 dark:border-stone-800"
+                      className="w-full px-3.5 py-2.5 text-left bg-teal-50/70 dark:bg-teal-950/50 hover:bg-teal-100/80 dark:hover:bg-teal-900/60 text-teal-800 dark:text-teal-200 font-bold flex items-center gap-2.5 transition-colors border-b border-stone-100 dark:border-stone-800 rounded-xl"
                     >
                       <RefreshCw className={`w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
                       <div>
@@ -153,6 +168,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                           {isSyncing && <span className="text-[10px] text-teal-600 animate-pulse">Probíhá...</span>}
                         </div>
                         <div className="text-[10px] text-stone-500 dark:text-stone-400 font-normal">Stáhnout změny z webu / odeslat data</div>
+                      </div>
+                    </button>
+
+                    {/* Nová cesta (na mobilu přímo v nabídce) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsManageOpen(false);
+                        onOpenNewTrip();
+                      }}
+                      className="w-full px-3.5 py-2.5 text-left hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-200 font-semibold flex items-center gap-2.5 transition-colors sm:hidden"
+                    >
+                      <Plus className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                      <div>
+                        <div className="font-bold">Vytvořit novou cestu</div>
+                        <div className="text-[10px] text-stone-400 font-normal">Založit prázdnou nebo z ChatGPT</div>
                       </div>
                     </button>
 
@@ -242,6 +273,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                       </div>
                     </button>
 
+                    {/* Zásobárna tipů ze světa */}
+                    {onOpenTips && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsManageOpen(false);
+                          onOpenTips();
+                        }}
+                        className="w-full px-3.5 py-2.5 text-left hover:bg-amber-50 dark:hover:bg-amber-950/40 text-stone-700 dark:text-stone-200 font-semibold flex items-center gap-2.5 transition-colors"
+                      >
+                        <Lightbulb className="w-4 h-4 text-amber-500 shrink-0" />
+                        <div>
+                          <div className="font-bold">Zásobárna tipů ze světa</div>
+                          <div className="text-[10px] text-stone-400 font-normal">Inspirace a wishlist napříč světem</div>
+                        </div>
+                      </button>
+                    )}
+
                     {/* Divider */}
                     <div className="my-1 border-t border-stone-100 dark:border-stone-800" />
 
@@ -253,7 +302,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setIsManageOpen(false);
                           onDeleteActiveTrip();
                         }}
-                        className="w-full px-3.5 py-2.5 text-left hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-bold flex items-center gap-2.5 transition-colors"
+                        className="w-full px-3.5 py-2.5 text-left hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-bold flex items-center gap-2.5 transition-colors rounded-xl"
                       >
                         <Trash2 className="w-4 h-4 text-rose-500 shrink-0" />
                         <div>
@@ -268,11 +317,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           )}
 
-          {/* New Trip Button */}
+          {/* New Trip Button (desktop only) */}
           <button
             onClick={onOpenNewTrip}
             title="Vytvořit novou cestu"
-            className="p-1 sm:p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 flex items-center gap-1 text-xs font-semibold transition-all shrink-0"
+            className="hidden sm:flex p-1 sm:p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 items-center gap-1 text-xs font-semibold transition-all shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
             <span className="hidden md:inline">Nová cesta</span>
@@ -281,6 +330,20 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Actions & Status */}
         <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+          {/* Global Tips button */}
+          {onOpenTips && (
+            <button
+              type="button"
+              onClick={onOpenTips}
+              title="Zásobárna tipů ze světa"
+              className="flex items-center gap-1 text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-1 rounded-full border border-amber-300/80 dark:border-amber-700/80 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all active:scale-95 shrink-0 shadow-2xs"
+              aria-label="Tipy ze světa"
+            >
+              <Lightbulb className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500 fill-amber-500" />
+              <span>Tipy</span>
+            </button>
+          )}
+
           {/* Sync status & Manual sync button */}
           <button
             onClick={onTriggerSync}

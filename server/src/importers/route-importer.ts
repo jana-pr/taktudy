@@ -12,6 +12,9 @@ export interface ImportedPoi {
   cost_category?: string;
   data_origin: 'imported' | 'ai_completed' | 'needs_completion';
   day_number?: number;
+  source_url?: string | null;
+  booking_url?: string | null;
+  main_photo_url?: string | null;
 }
 
 export interface ImportedDay {
@@ -39,6 +42,18 @@ export interface ImportedAccommodation {
   rooms_count?: number;
 }
 
+export interface ImportedBooking {
+  type?: string;
+  title: string;
+  provider?: string;
+  confirmation_number?: string;
+  price?: number;
+  currency?: string;
+  booking_date?: string;
+  notes?: string;
+  document_url?: string;
+}
+
 export interface ImportedTripResult {
   title: string;
   country_region?: string;
@@ -50,6 +65,7 @@ export interface ImportedTripResult {
   days: ImportedDay[];
   pois: ImportedPoi[];
   accommodations?: ImportedAccommodation[];
+  bookings?: ImportedBooking[];
   coordinates: [number, number][]; // LineString [lng, lat]
 }
 
@@ -556,23 +572,30 @@ function parseJson(jsonStr: string): ImportedTripResult {
 
     const desc = p.description || p.desc || p.popis || p.note || p.notes;
     const cat = normalizeCategory(p.category_id || p.category || p.kategorie || p.type, name, desc);
+    const cost = typeof p.cost_est === 'number' ? p.cost_est : parseFloat(p.cost_est || p.cost || p.price || p.cena) || 0;
+    const sourceUrl = p.source_url || p.booking_url || p.website_url || p.url || p.link || p.odkaz || null;
+    const bookingUrl = p.booking_url || (cat === 'accommodation' ? sourceUrl : null);
 
     return {
-      name,
-      lat,
-      lng,
-      category_id: cat,
-      description: desc,
-      is_mandatory: p.is_mandatory !== false,
-      is_enabled: p.is_enabled !== false,
-      why_visit: p.why_visit || p.duvod || desc,
-      recommended_duration: p.recommended_duration || p.duration || p.doba_navstevy,
-      cost_est: typeof p.cost_est === 'number' ? p.cost_est : parseFloat(p.cost_est || p.cost || p.price || p.cena) || 0,
-      cost_category: p.cost_category || 'tickets',
-      data_origin: p.data_origin || 'imported',
-      day_number: Number(p.day_number || p.day || p.den) || 1,
-    };
-  });
+        name,
+        lat,
+        lng,
+        category_id: cat,
+        description: desc,
+        is_mandatory: p.is_mandatory !== false,
+        is_enabled: p.is_enabled !== false,
+        why_visit: p.why_visit || p.duvod || desc,
+        recommended_duration: p.recommended_duration || p.duration || p.doba_navstevy,
+        cost_est: cost,
+        cost_category: p.cost_category || (cat === 'accommodation' ? 'accommodation' : 'tickets'),
+        data_origin: p.data_origin || 'imported',
+        day_number: Number(p.day_number || p.day || p.den) || 1,
+        source_url: sourceUrl,
+        booking_url: bookingUrl,
+        main_photo_url: p.main_photo_url || p.photo_url || p.image_url || p.image || null,
+      };
+    });
+
   // Extract accommodations from data or overnight locations
   const rawAccommodations: any[] = Array.isArray(data.accommodations)
     ? [...data.accommodations]
@@ -581,6 +604,25 @@ function parseJson(jsonStr: string): ImportedTripResult {
     : Array.isArray(data.hotels)
     ? [...data.hotels]
     : [];
+
+  // Also auto-detect hotels from rawPois if they have booking_url or category hotel/accommodation
+  rawPois.forEach((p: any) => {
+    const pCat = (p.category_id || p.category || p.cost_category || '').toLowerCase();
+    const isHotel = pCat === 'hotel' || pCat === 'accommodation' || Boolean(p.booking_url);
+    if (isHotel && p.name) {
+      if (!rawAccommodations.some((a) => (a.hotel_name || a.name || a.nazev) === p.name)) {
+        rawAccommodations.push({
+          day_number: Number(p.day_number || p.day || p.den) || 1,
+          hotel_name: p.name,
+          location: p.location || p.address || p.misto || null,
+          lat: p.lat,
+          lng: p.lng,
+          booking_url: p.booking_url || p.source_url || p.website_url || p.url,
+          price_total: typeof p.cost_est === 'number' ? p.cost_est : parseFloat(p.cost_est || p.cost || p.price || p.cena) || 0,
+        });
+      }
+    }
+  });
 
   rawDays.forEach((d: any, idx: number) => {
     const dayNum = Number(d.day_number || d.day || d.den) || idx + 1;
@@ -603,11 +645,43 @@ function parseJson(jsonStr: string): ImportedTripResult {
     lat: typeof a.lat === 'number' ? a.lat : parseFloat(a.lat || a.latitude) || undefined,
     lng: typeof a.lng === 'number' ? a.lng : parseFloat(a.lng || a.longitude) || undefined,
     booking_url: a.booking_url || a.url || a.odkaz || a.link,
-    price_total: typeof a.price_total === 'number' ? a.price_total : parseFloat(a.price_total || a.price || a.cena) || 0,
+    price_total: typeof a.price_total === 'number' ? a.price_total : parseFloat(a.price_total || a.cost_est || a.cost || a.price || a.cena) || 0,
     price_single: typeof a.price_single === 'number' ? a.price_single : parseFloat(a.price_single) || 0,
     price_currency: a.price_currency || a.currency || 'USD',
     rooms_count: Number(a.rooms_count || a.rooms || a.pokoje) || 2,
   }));
+
+  // Extract bookings / reservations
+  const rawBookings: any[] = Array.isArray(data.bookings)
+    ? [...data.bookings]
+    : Array.isArray(data.rezervace)
+    ? [...data.rezervace]
+    : Array.isArray(data.reservations)
+    ? [...data.reservations]
+    : Array.isArray(data.flights)
+    ? [...data.flights]
+    : [];
+
+  const parsedBookings: ImportedBooking[] = rawBookings.map((b: any, idx: number) => {
+    let bType = (b.type || b.typ || 'other').toLowerCase();
+    if (bType.includes('let') || bType.includes('flight')) bType = 'flight';
+    else if (bType.includes('hotel') || bType.includes('ubytov')) bType = 'hotel';
+    else if (bType.includes('auto') || bType.includes('car') || bType.includes('transfer')) bType = 'car';
+    else if (bType.includes('vstup') || bType.includes('ticket')) bType = 'ticket';
+    else bType = 'other';
+
+    return {
+      type: bType,
+      title: b.title || b.name || b.nazev || `Rezervace ${idx + 1}`,
+      provider: b.provider || b.poskytovatel || b.airline || b.spolecnost,
+      confirmation_number: b.confirmation_number || b.kod || b.booking_number || b.ticket_number,
+      price: typeof b.price === 'number' ? b.price : parseFloat(b.price || b.cena || b.cost || b.cost_est) || 0,
+      currency: b.currency || b.mena || 'USD',
+      booking_date: b.booking_date || b.date || b.datum,
+      notes: b.notes || b.note || b.poznamka || b.details,
+      document_url: b.document_url || b.url || b.link,
+    };
+  });
 
   return {
     title,
@@ -620,6 +694,7 @@ function parseJson(jsonStr: string): ImportedTripResult {
     days: parsedDays.length > 0 ? parsedDays : [{ day_number: 1, title: 'Den 1: Příjezd' }],
     pois: parsedPois,
     accommodations: parsedAccommodations,
+    bookings: parsedBookings,
     coordinates: Array.isArray(data.coordinates) ? data.coordinates : [],
   };
 }

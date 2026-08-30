@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Category, POI } from '../types';
 import { importApi } from '../api/client';
-import { X, Link2, Sparkles, MapPin, Loader2, Star, Check } from 'lucide-react';
+import { compressImageFile } from '../utils/imageCompressor';
+import { X, Link2, Sparkles, MapPin, Loader2, Star, Check, Camera, Image as ImageIcon } from 'lucide-react';
 
 interface QuickAddPoiModalProps {
   tripId: string;
@@ -257,6 +258,57 @@ export const QuickAddPoiModal: React.FC<QuickAddPoiModalProps> = ({
               placeholder="Doporučení od známého, otevírací doba, co ochutnat..."
               className="w-full px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-xl text-xs dark:bg-stone-800 focus:outline-none focus:ring-2 focus:ring-outdoor-teal"
             />
+          </div>
+
+          {/* Photo upload / URL */}
+          <div>
+            <label className="block text-xs font-bold text-stone-600 dark:text-stone-300 mb-1">
+              Fotografie místa
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={photoUrl}
+                onChange={(e) => setPhotoUrl(e.target.value)}
+                placeholder="URL odkazu na fotku..."
+                className="flex-1 px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-xl text-xs dark:bg-stone-800"
+              />
+              <label
+                className="p-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl cursor-pointer shrink-0 transition-colors"
+                title="Nahrát fotku z mobilu"
+              >
+                <Camera className="w-4 h-4" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      try {
+                        const compressed = await compressImageFile(file);
+                        setPhotoUrl(compressed);
+                      } catch {}
+                    }
+                  }}
+                  className="hidden"
+                />
+              </label>
+              {photoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setPhotoUrl('')}
+                  className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl"
+                  title="Odebrat fotku"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            {photoUrl && (
+              <div className="mt-2 h-24 w-full rounded-xl overflow-hidden border border-stone-200 dark:border-stone-700">
+                <img src={photoUrl} alt="Náhled" className="w-full h-full object-cover" />
+              </div>
+            )}
           </div>
 
           {/* GPS Coordinate helper */}

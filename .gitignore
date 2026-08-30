@@ -35,3 +35,6 @@ Thumbs.db
 
 # Test coverage
 coverage/
+
+# Scratch & temporary test scripts
+scratch/

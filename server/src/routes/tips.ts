@@ -47,17 +47,9 @@ export const tipsRoutes: FastifyPluginAsync = async (fastify) => {
       lng,
       notes,
       source_url,
+      photo_url,
       trip_id,
-    } = request.body as {
-      title: string;
-      category_id?: string;
-      location_name?: string;
-      lat?: number;
-      lng?: number;
-      notes?: string;
-      source_url?: string;
-      trip_id?: string;
-    };
+    } = request.body as any;
 
     if (!title || !title.trim()) {
       return reply.status(400).send({ error: 'Název místa / tipu je povinný.' });
@@ -74,8 +66,8 @@ export const tipsRoutes: FastifyPluginAsync = async (fastify) => {
     db.prepare(`
       INSERT INTO tips (
         id, user_id, trip_id, title, category_id, location_name,
-        lat, lng, notes, source_url, is_used, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+        lat, lng, notes, source_url, photo_url, is_used, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
     `).run(
       tipId,
       userId,
@@ -87,6 +79,7 @@ export const tipsRoutes: FastifyPluginAsync = async (fastify) => {
       typeof lng === 'number' ? lng : (lng ? parseFloat(lng) : null),
       notes ? notes.trim() : null,
       source_url ? source_url.trim() : null,
+      photo_url ? photo_url.trim() : null,
       now,
       now
     );
@@ -113,6 +106,7 @@ export const tipsRoutes: FastifyPluginAsync = async (fastify) => {
       lng,
       notes,
       source_url,
+      photo_url,
       is_used,
     } = request.body as any;
 
@@ -132,6 +126,7 @@ export const tipsRoutes: FastifyPluginAsync = async (fastify) => {
     if (lng !== undefined) { fields.push('lng = ?'); values.push(typeof lng === 'number' ? lng : parseFloat(lng)); }
     if (notes !== undefined) { fields.push('notes = ?'); values.push(notes); }
     if (source_url !== undefined) { fields.push('source_url = ?'); values.push(source_url); }
+    if (photo_url !== undefined) { fields.push('photo_url = ?'); values.push(photo_url); }
     if (is_used !== undefined) { fields.push('is_used = ?'); values.push(is_used ? 1 : 0); }
 
     values.push(id);
@@ -186,9 +181,9 @@ export const tipsRoutes: FastifyPluginAsync = async (fastify) => {
     db.prepare(`
       INSERT INTO pois (
         id, trip_id, day_id, category_id, name, lat, lng,
-        description, why_visit, cost_est, cost_currency, cost_category,
+        description, why_visit, source_url, main_photo_url, cost_est, cost_currency, cost_category,
         is_mandatory, is_enabled, data_origin, sort_order, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'USD', 'activities', 0, 1, 'imported', ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'USD', 'activities', 0, 1, 'imported', ?, ?, ?)
     `).run(
       poiId,
       tripId,
@@ -199,6 +194,8 @@ export const tipsRoutes: FastifyPluginAsync = async (fastify) => {
       tip.lng || 0,
       tip.notes || null,
       tip.notes || 'Přidáno ze Zásobárny tipů',
+      tip.source_url || null,
+      tip.photo_url || null,
       maxSort + 1,
       now,
       now

@@ -20,6 +20,7 @@ interface MapViewProps {
   onSelectPoi: (poi: POI) => void;
   onMapClick?: (coords: { lat: number; lng: number }) => void;
   onOpenQuickAdd?: () => void;
+  onNavigateToAccommodations?: () => void;
   isDarkMode: boolean;
 }
 
@@ -75,6 +76,7 @@ export const MapView: React.FC<MapViewProps> = ({
   onSelectPoi,
   onMapClick,
   onOpenQuickAdd,
+  onNavigateToAccommodations,
   isDarkMode,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -83,14 +85,46 @@ export const MapView: React.FC<MapViewProps> = ({
   const safePois = pois || [];
   const safeAccommodations = accommodations || [];
 
+  // Multi-select categories state
+  const [selectedCats, setSelectedCats] = useState<string[]>(() => {
+    return selectedCategory ? [selectedCategory] : [];
+  });
+
+  const toggleCategory = (catId: string) => {
+    setSelectedCats((prev) => {
+      if (prev.includes(catId)) {
+        return prev.filter((id) => id !== catId);
+      } else {
+        return [...prev, catId];
+      }
+    });
+  };
+
+  const clearCategories = () => {
+    setSelectedCats([]);
+    onSelectCategory(null);
+  };
+
+  // Attach global handler for opening accommodation detail from popup
+  useEffect(() => {
+    (window as any).__openAccommodationTab = () => {
+      if (onNavigateToAccommodations) {
+        onNavigateToAccommodations();
+      }
+    };
+    return () => {
+      delete (window as any).__openAccommodationTab;
+    };
+  }, [onNavigateToAccommodations]);
+
   // Toggle showing accommodations on map (default ON)
   const [showAccommodations, setShowAccommodations] = useState(true);
 
-  // Filter POIs by Category, Top, and Day
+  // Filter POIs by Category (Multiselect), Top, and Day
   const filteredPois = safePois.filter((p) => {
     if (selectedDayId && p.day_id !== selectedDayId) return false;
     if (onlyTop && !p.is_top) return false;
-    if (selectedCategory && p.category_id !== selectedCategory) return false;
+    if (selectedCats.length > 0 && !selectedCats.includes(p.category_id)) return false;
     return true;
   });
 
@@ -229,8 +263,10 @@ export const MapView: React.FC<MapViewProps> = ({
         `;
 
         const bookingBtn = acc.booking_url
-          ? `<a href="${acc.booking_url}" target="_blank" rel="noopener noreferrer" style="display:block; margin-top:8px; padding:6px 10px; background:#0d9488; color:#ffffff; font-weight:bold; font-size:11px; text-align:center; border-radius:8px; text-decoration:none;">Otevřít na Booking.com ↗</a>`
+          ? `<a href="${acc.booking_url}" target="_blank" rel="noopener noreferrer" style="display:block; margin-top:6px; padding:6px 10px; background:#f0fdfa; color:#0f766e; border:1px solid #0f766e; font-weight:bold; font-size:11px; text-align:center; border-radius:8px; text-decoration:none;">Otevřít na Booking.com ↗</a>`
           : '';
+
+        const detailBtn = `<button onclick="window.__openAccommodationTab && window.__openAccommodationTab()" style="display:block; width:100%; margin-top:8px; padding:7px 10px; background:#0f766e; color:#ffffff; font-weight:bold; font-size:11px; text-align:center; border-radius:8px; border:none; cursor:pointer;">Přejít na Ubytování 🛏️</button>`;
 
         const popup = new maplibregl.Popup({ offset: 18 }).setHTML(`
           <div style="font-family: inherit; font-size: 12px; padding: 2px; line-height: 1.4;">
@@ -244,6 +280,7 @@ export const MapView: React.FC<MapViewProps> = ({
             ${acc.room_type ? `<div style="color: #374151; font-size: 11px; margin-top: 2px;">🛏️ ${acc.room_type}</div>` : ''}
             ${acc.price_total ? `<div style="font-weight: bold; color: #047857; margin-top: 4px;">$${acc.price_total} ${acc.price_currency || 'USD'} / noc</div>` : ''}
             ${acc.cancellation_policy ? `<div style="color: #4b5563; font-size: 10px; margin-top: 2px;">🛡️ ${acc.cancellation_policy}</div>` : ''}
+            ${detailBtn}
             ${bookingBtn}
           </div>
         `);
@@ -404,7 +441,7 @@ export const MapView: React.FC<MapViewProps> = ({
           <span>★ TOP</span>
         </button>
 
-        {/* Accommodations / Hotels Filter Toggle */}
+        {/* Accommodations Filter Toggle */}
         <button
           onClick={() => setShowAccommodations(!showAccommodations)}
           className={`flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full shadow-md transition-all flex-shrink-0 active:scale-95 ${
@@ -412,13 +449,13 @@ export const MapView: React.FC<MapViewProps> = ({
               ? 'bg-teal-600 text-white ring-2 ring-white dark:ring-stone-800'
               : 'bg-white/95 dark:bg-outdoor-dark-card/95 text-outdoor-text dark:text-stone-200 border border-stone-200 dark:border-stone-700 hover:bg-stone-50'
           }`}
-          aria-label="Zobrazit hotely a ubytování na mapě"
+          aria-label="Zobrazit ubytování na mapě"
         >
           <Bed className={`w-3.5 h-3.5 ${showAccommodations ? 'fill-white text-white' : 'text-teal-600'}`} />
-          <span>🏨 Hotely ({filteredAccommodations.length})</span>
+          <span>🏨 Ubytování ({filteredAccommodations.length})</span>
         </button>
 
-        {/* Tips Filter Toggle */}
+        {/* Tips Filter Toggle - independent, always visible across world */}
         {onToggleShowTips && (
           <button
             onClick={onToggleShowTips}
@@ -436,9 +473,9 @@ export const MapView: React.FC<MapViewProps> = ({
 
         {/* All categories pill */}
         <button
-          onClick={() => onSelectCategory(null)}
+          onClick={clearCategories}
           className={`flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full shadow-md transition-all flex-shrink-0 active:scale-95 ${
-            selectedCategory === null
+            selectedCats.length === 0
               ? 'bg-outdoor-teal-dark text-white ring-2 ring-white dark:ring-stone-800'
               : 'bg-white/95 dark:bg-outdoor-dark-card/95 text-outdoor-text dark:text-stone-200 border border-stone-200 dark:border-stone-700 hover:bg-stone-50'
           }`}
@@ -447,15 +484,15 @@ export const MapView: React.FC<MapViewProps> = ({
           <span>Všechny ({safePois.length})</span>
         </button>
 
-        {/* Category Pills */}
+        {/* Category Pills (Multi-select) */}
         {categories.map((cat) => {
           const count = safePois.filter((p) => p.category_id === cat.id).length;
-          const isSelected = selectedCategory === cat.id;
+          const isSelected = selectedCats.includes(cat.id);
 
           return (
             <button
               key={cat.id}
-              onClick={() => onSelectCategory(isSelected ? null : cat.id)}
+              onClick={() => toggleCategory(cat.id)}
               className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full shadow-md transition-all flex-shrink-0 active:scale-95 ${
                 isSelected
                   ? 'bg-outdoor-teal-dark text-white ring-2 ring-white dark:ring-stone-800'

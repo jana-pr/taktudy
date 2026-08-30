@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { POI, Category, Stage, Day } from '../types';
+import { compressImageFile, CATEGORY_PHOTO_PRESETS } from '../utils/imageCompressor';
 import {
   X,
   Star,
@@ -14,6 +15,10 @@ import {
   Lock,
   Calendar,
   Layers,
+  Camera,
+  Image as ImageIcon,
+  Globe,
+  DollarSign,
 } from 'lucide-react';
 
 interface PoiDetailModalProps {
@@ -52,6 +57,12 @@ export const PoiDetailModal: React.FC<PoiDetailModalProps> = ({
   const [editTimeMode, setEditTimeMode] = useState<'none' | 'approximate' | 'fixed'>('none');
   const [editStageId, setEditStageId] = useState('');
   const [editDayId, setEditDayId] = useState('');
+  const [editPhotoUrl, setEditPhotoUrl] = useState('');
+  const [editSourceUrl, setEditSourceUrl] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState('');
+  const [editWhyVisit, setEditWhyVisit] = useState('');
+  const [editCostEst, setEditCostEst] = useState<number | string>(0);
+  const [editRecommendedDuration, setEditRecommendedDuration] = useState('');
 
   if (!isOpen || !poi) return null;
 
@@ -67,7 +78,24 @@ export const PoiDetailModal: React.FC<PoiDetailModalProps> = ({
     setEditTimeMode(poi.time_mode);
     setEditStageId(poi.stage_id || '');
     setEditDayId(poi.day_id || '');
+    setEditPhotoUrl(poi.main_photo_url || '');
+    setEditSourceUrl(poi.source_url || '');
+    setEditCategoryId(poi.category_id || 'other');
+    setEditWhyVisit(poi.why_visit || '');
+    setEditCostEst(poi.cost_est ?? 0);
+    setEditRecommendedDuration(poi.recommended_duration || '');
     setIsEditing(true);
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await compressImageFile(file);
+      setEditPhotoUrl(compressed);
+    } catch (err: any) {
+      alert(err.message || 'Nepodařilo se zpracovat fotografii.');
+    }
   };
 
   const handleSave = () => {
@@ -80,6 +108,12 @@ export const PoiDetailModal: React.FC<PoiDetailModalProps> = ({
       time_mode: editTimeMode,
       stage_id: editStageId || null,
       day_id: editDayId || null,
+      main_photo_url: editPhotoUrl || null,
+      source_url: editSourceUrl || null,
+      category_id: editCategoryId || poi.category_id,
+      why_visit: editWhyVisit || null,
+      cost_est: typeof editCostEst === 'number' ? editCostEst : parseFloat(String(editCostEst)) || 0,
+      recommended_duration: editRecommendedDuration || null,
     });
     setIsEditing(false);
   };
@@ -117,8 +151,8 @@ export const PoiDetailModal: React.FC<PoiDetailModalProps> = ({
             <X className="w-5 h-5" />
           </button>
 
-          {/* Top & Category Badges on Photo */}
-          <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
+          {/* Top & Category Badges & Change Photo Button on Photo */}
+          <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-2">
             <div>
               <span className="inline-block text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-outdoor-teal text-white shadow">
                 {category?.label_cs || 'Bod zájmu'}
@@ -128,22 +162,37 @@ export const PoiDetailModal: React.FC<PoiDetailModalProps> = ({
               </h1>
             </div>
 
-            {/* TOP Badge & Toggle */}
-            {!isReadOnly && (
-              <button
-                type="button"
-                onClick={() => onToggleTop(poi.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black shadow-lg transition-transform active:scale-95 ${
-                  poi.is_top
-                    ? 'bg-outdoor-top text-white ring-2 ring-white'
-                    : 'bg-white/90 text-stone-700 hover:bg-white'
-                }`}
-                title={poi.is_top ? 'Odebrat z TOP' : 'Nastavit jako TOP'}
-              >
-                <Star className={`w-4 h-4 ${poi.is_top ? 'fill-white' : 'text-stone-400'}`} />
-                <span>TOP</span>
-              </button>
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Change photo button directly on cover */}
+              {!isReadOnly && !isEditing && (
+                <button
+                  type="button"
+                  onClick={handleStartEdit}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-black/60 hover:bg-black/80 text-white backdrop-blur shadow-md transition-all active:scale-95"
+                  title="Změnit fotografii tohoto místa"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">Změnit foto</span>
+                </button>
+              )}
+
+              {/* TOP Badge & Toggle */}
+              {!isReadOnly && (
+                <button
+                  type="button"
+                  onClick={() => onToggleTop(poi.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black shadow-lg transition-transform active:scale-95 ${
+                    poi.is_top
+                      ? 'bg-outdoor-top text-white ring-2 ring-white'
+                      : 'bg-white/90 text-stone-700 hover:bg-white'
+                  }`}
+                  title={poi.is_top ? 'Odebrat z TOP' : 'Nastavit jako TOP'}
+                >
+                  <Star className={`w-4 h-4 ${poi.is_top ? 'fill-white' : 'text-stone-400'}`} />
+                  <span>TOP</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -153,12 +202,129 @@ export const PoiDetailModal: React.FC<PoiDetailModalProps> = ({
             /* Editing Form */
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-stone-500 mb-1">Název místa</label>
+                <label className="block text-xs font-bold text-stone-500 mb-1">Název místa *</label>
                 <input
                   type="text"
+                  required
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg text-sm dark:bg-stone-800 dark:border-stone-700"
+                />
+              </div>
+
+              {/* Photo Upload & Preview Section */}
+              <div className="p-3.5 bg-stone-50 dark:bg-stone-800/60 rounded-xl border border-stone-200 dark:border-stone-700 space-y-2">
+                <label className="block text-xs font-bold text-stone-600 dark:text-stone-300">
+                  Fotografie bodu zájmu
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={editPhotoUrl}
+                    onChange={(e) => setEditPhotoUrl(e.target.value)}
+                    placeholder="URL odkaz na fotku nebo nahrajte z mobilu..."
+                    className="flex-1 px-3 py-2 border rounded-lg text-xs dark:bg-stone-900 dark:border-stone-700"
+                  />
+                  <label
+                    className="px-3 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white cursor-pointer font-bold text-xs flex items-center gap-1.5 shrink-0 transition-colors"
+                    title="Nahrát fotku z mobilu nebo fotoaparátu"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>Nahrát foto</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  {editPhotoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setEditPhotoUrl('')}
+                      className="p-2 rounded-lg bg-rose-100 text-rose-600 hover:bg-rose-200 shrink-0"
+                      title="Odebrat fotografii"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Photo thumbnail */}
+                {editPhotoUrl && (
+                  <div className="relative w-full h-32 rounded-xl overflow-hidden border border-stone-200 dark:border-stone-700 mt-2">
+                    <img src={editPhotoUrl} alt="Náhled fotky" className="w-full h-full object-cover" />
+                  </div>
+                )}
+
+                {/* Presets */}
+                {CATEGORY_PHOTO_PRESETS[editCategoryId || poi.category_id] && !editPhotoUrl && (
+                  <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                    <span className="text-[10px] text-stone-400 font-medium">Doporučené:</span>
+                    {CATEGORY_PHOTO_PRESETS[editCategoryId || poi.category_id].map((pr) => (
+                      <button
+                        key={pr.url}
+                        type="button"
+                        onClick={() => setEditPhotoUrl(pr.url)}
+                        className="text-[10px] px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 border border-teal-200/60 font-medium"
+                      >
+                        {pr.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Category, Cost & Web link */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-stone-500 mb-1">Kategorie</label>
+                  <select
+                    value={editCategoryId}
+                    onChange={(e) => setEditCategoryId(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-xs dark:bg-stone-800 dark:border-stone-700 font-medium"
+                  >
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label_cs}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-stone-500 mb-1">Vstupné / Cena (USD)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={editCostEst}
+                    onChange={(e) => setEditCostEst(e.target.value)}
+                    placeholder="0"
+                    className="w-full px-3 py-2 border rounded-lg text-xs dark:bg-stone-800 dark:border-stone-700 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-stone-500 mb-1">Doba návštěvy</label>
+                  <input
+                    type="text"
+                    value={editRecommendedDuration}
+                    onChange={(e) => setEditRecommendedDuration(e.target.value)}
+                    placeholder="např. 2 hod"
+                    className="w-full px-3 py-2 border rounded-lg text-xs dark:bg-stone-800 dark:border-stone-700 font-medium"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-500 mb-1">Web / Rezervační odkaz (URL)</label>
+                <input
+                  type="url"
+                  value={editSourceUrl}
+                  onChange={(e) => setEditSourceUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 border rounded-lg text-xs dark:bg-stone-800 dark:border-stone-700 font-medium"
                 />
               </div>
 

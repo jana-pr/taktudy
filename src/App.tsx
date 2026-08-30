@@ -461,6 +461,7 @@ export function App() {
           onOpenShare={() => setIsShareModalOpen(true)}
           onOpenOfflineChecklist={() => setIsOfflineModalOpen(true)}
           onOpenQrModal={() => setIsQrModalOpen(true)}
+          onOpenTips={() => setActiveTab('tips')}
           isDarkMode={isDarkMode}
           onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
           isOnline={isOnline}
@@ -470,113 +471,141 @@ export function App() {
           onLogout={handleLogout}
         />
 
-        {/* Sub-Header Tabs: 2 rows grid on mobile so ALL tabs are visible; flex on desktop */}
+        {/* Sub-Header Tabs */}
         {activeTrip && (
           <div className="w-full max-w-full border-t border-stone-100 dark:border-stone-800/80 px-2 py-1.5 sm:px-6 sm:py-2">
             <div className="max-w-7xl mx-auto w-full">
-              <div className="grid grid-cols-4 sm:flex sm:items-center sm:gap-2 gap-1 w-full">
+              {/* Mobile View: ONLY Ubytování and Rezervace (Other tabs are in bottom navigation) */}
+              <div className="flex sm:hidden items-center justify-center gap-2 w-full">
+                <button
+                  onClick={() => setActiveTab('accommodations')}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+                    activeTab === 'accommodations'
+                      ? 'bg-teal-600 text-white shadow-xs'
+                      : 'text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200'
+                  }`}
+                >
+                  <Bed className="w-4 h-4" />
+                  <span>Ubytování</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('bookings')}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+                    activeTab === 'bookings'
+                      ? 'bg-teal-600 text-white shadow-xs'
+                      : 'text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200'
+                  }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Rezervace</span>
+                </button>
+              </div>
+
+              {/* Desktop View: All tabs */}
+              <div className="hidden sm:flex sm:items-center sm:gap-2 w-full">
                 {/* 1. Přehled */}
                 <button
                   onClick={() => setActiveTab('overview')}
-                  className={`px-1 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[10.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                     activeTab === 'overview'
                       ? 'bg-teal-600 text-white shadow-xs'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 bg-gray-50/80 dark:bg-gray-800/40 sm:bg-transparent'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
                   <LayoutDashboard className="w-3.5 h-3.5" />
-                  <span className="truncate">Přehled</span>
+                  <span>Přehled</span>
                 </button>
 
                 {/* 2. Itinerář */}
                 <button
                   onClick={() => setActiveTab('plan')}
-                  className={`px-1 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[10.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                     activeTab === 'plan'
                       ? 'bg-teal-600 text-white shadow-xs'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 bg-gray-50/80 dark:bg-gray-800/40 sm:bg-transparent'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
                   <Calendar className="w-3.5 h-3.5" />
-                  <span className="truncate">Itinerář</span>
+                  <span>Itinerář</span>
                 </button>
 
                 {/* 3. Mapa */}
                 <button
                   onClick={() => setActiveTab('map')}
-                  className={`px-1 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[10.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                     activeTab === 'map'
                       ? 'bg-teal-600 text-white shadow-xs'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 bg-gray-50/80 dark:bg-gray-800/40 sm:bg-transparent'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
                   <Map className="w-3.5 h-3.5" />
-                  <span className="truncate">Mapa</span>
+                  <span>Mapa</span>
                 </button>
 
                 {/* 4. Ubytování */}
                 <button
                   onClick={() => setActiveTab('accommodations')}
-                  className={`px-1 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[10.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                     activeTab === 'accommodations'
                       ? 'bg-teal-600 text-white shadow-xs'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 bg-gray-50/80 dark:bg-gray-800/40 sm:bg-transparent'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
                   <Bed className="w-3.5 h-3.5" />
-                  <span className="truncate">Ubytování</span>
+                  <span>Ubytování</span>
                 </button>
 
                 {/* 5. Rezervace */}
                 <button
                   onClick={() => setActiveTab('bookings')}
-                  className={`px-1 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[10.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                     activeTab === 'bookings'
                       ? 'bg-teal-600 text-white shadow-xs'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 bg-gray-50/80 dark:bg-gray-800/40 sm:bg-transparent'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
                   <FileText className="w-3.5 h-3.5" />
-                  <span className="truncate">Rezervace</span>
+                  <span>Rezervace</span>
                 </button>
 
                 {/* 6. Rozpočet */}
                 <button
                   onClick={() => setActiveTab('budget')}
-                  className={`px-1 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[10.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                     activeTab === 'budget'
                       ? 'bg-teal-600 text-white shadow-xs'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 bg-gray-50/80 dark:bg-gray-800/40 sm:bg-transparent'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
                   <DollarSign className="w-3.5 h-3.5" />
-                  <span className="truncate">Rozpočet</span>
+                  <span>Rozpočet</span>
                 </button>
 
                 {/* 7. Zásobárna tipů */}
                 <button
                   onClick={() => setActiveTab('tips')}
-                  className={`px-1 sm:px-3 py-1 sm:py-1.5 rounded-xl text-[10.5px] sm:text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                     activeTab === 'tips'
                       ? 'bg-amber-500 text-white shadow-xs'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 bg-gray-50/80 dark:bg-gray-800/40 sm:bg-transparent'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
                   <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-                  <span className="truncate">Tipy</span>
+                  <span>Tipy</span>
                 </button>
 
                 {/* 8. DNES */}
                 <button
                   onClick={() => setActiveTab('today')}
-                  className={`px-1 sm:px-3.5 py-1 sm:py-1.5 rounded-xl text-[10.5px] sm:text-xs font-extrabold flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 transition-all shadow-xs sm:ml-auto ${
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all shadow-xs ml-auto ${
                     activeTab === 'today'
                       ? 'bg-rose-600 text-white ring-2 ring-rose-400'
                       : 'bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
                   }`}
                 >
                   <Sparkles className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
-                  <span className="truncate">DNES</span>
+                  <span>DNES</span>
                 </button>
               </div>
             </div>
@@ -641,6 +670,7 @@ export function App() {
                 onSelectPoi={setSelectedPoi}
                 onMapClick={handleMapClick}
                 onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+                onNavigateToAccommodations={() => setActiveTab('accommodations')}
                 isDarkMode={isDarkMode}
               />
             )}

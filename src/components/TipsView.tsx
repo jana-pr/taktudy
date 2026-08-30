@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Tip, FullTrip } from '../types';
 import { tipsApi } from '../api/client';
+import { compressImageFile, CATEGORY_PHOTO_PRESETS } from '../utils/imageCompressor';
 import {
   Lightbulb,
   Plus,
@@ -15,6 +16,11 @@ import {
   Sparkles,
   Navigation,
   Bookmark,
+  Camera,
+  Image as ImageIcon,
+  Edit2,
+  X,
+  Globe,
 } from 'lucide-react';
 
 interface TipsViewProps {
@@ -31,6 +37,7 @@ export const TipsView: React.FC<TipsViewProps> = ({
   const [tips, setTips] = useState<Tip[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [editingTip, setEditingTip] = useState<Tip | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
@@ -42,6 +49,7 @@ export const TipsView: React.FC<TipsViewProps> = ({
   const [lng, setLng] = useState<string>('');
   const [notes, setNotes] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Promote state (which tip is currently opening day selection)
@@ -66,13 +74,51 @@ export const TipsView: React.FC<TipsViewProps> = ({
     loadTips();
   }, []);
 
-  const handleCreateTip = async (e: React.FormEvent) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await compressImageFile(file);
+      setPhotoUrl(compressed);
+    } catch (err: any) {
+      alert(err.message || 'Nepodařilo se zpracovat fotografii.');
+    }
+  };
+
+  const handleStartEdit = (tip: Tip) => {
+    setEditingTip(tip);
+    setTitle(tip.title || '');
+    setLocationName(tip.location_name || '');
+    setCategoryId(tip.category_id || 'other');
+    setLat(tip.lat ? String(tip.lat) : '');
+    setLng(tip.lng ? String(tip.lng) : '');
+    setNotes(tip.notes || '');
+    setSourceUrl(tip.source_url || '');
+    setPhotoUrl(tip.photo_url || '');
+    setIsAddOpen(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const resetForm = () => {
+    setEditingTip(null);
+    setTitle('');
+    setLocationName('');
+    setCategoryId('other');
+    setNotes('');
+    setSourceUrl('');
+    setPhotoUrl('');
+    setLat('');
+    setLng('');
+    setIsAddOpen(false);
+  };
+
+  const handleSaveTip = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
     setSubmitting(true);
     try {
-      await tipsApi.create({
+      const payload: any = {
         title: title.trim(),
         location_name: locationName.trim() || undefined,
         category_id: categoryId,
@@ -80,18 +126,19 @@ export const TipsView: React.FC<TipsViewProps> = ({
         lng: lng ? parseFloat(lng) : undefined,
         notes: notes.trim() || undefined,
         source_url: sourceUrl.trim() || undefined,
-        trip_id: activeTrip ? activeTrip.id : undefined,
-      });
+        photo_url: photoUrl.trim() || undefined,
+      };
 
-      setTitle('');
-      setLocationName('');
-      setNotes('');
-      setSourceUrl('');
-      setLat('');
-      setLng('');
-      setIsAddOpen(false);
+      if (editingTip) {
+        await tipsApi.update(editingTip.id, payload);
+        showToast('Tip byl úspěšně upraven!');
+      } else {
+        await tipsApi.create(payload);
+        showToast('Tip byl úspěšně uložen do zásobárny!');
+      }
+
+      resetForm();
       await loadTips();
-      showToast('Tip byl úspěšně uložen do zásobárny!');
     } catch (err: any) {
       alert(err.message || 'Chyba při ukládání tipu.');
     } finally {
@@ -158,40 +205,52 @@ export const TipsView: React.FC<TipsViewProps> = ({
         </div>
       )}
 
-      {/* Header */}
+      {/* Header - Global Tips across the world */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-gradient-to-r from-amber-500/10 via-teal-500/10 to-amber-500/5 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-amber-200/50 dark:border-amber-900/30 shadow-xs">
         <div>
           <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs font-bold uppercase tracking-wider">
-            <Lightbulb className="w-4 h-4" />
-            <span>Inspirace & Wishlist</span>
+            <Globe className="w-4 h-4 text-outdoor-teal" />
+            <span>Zásobárna tipů ze světa</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white mt-1">
-            Zásobárna tipů
+            Tipy & Inspirace
           </h1>
           <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1 max-w-xl">
-            Místa, kavárny, vyhlídky a zážitky, které vás zaujaly. Uložte si je sem s přibližnou lokací a kdykoliv je jedním kliknutím zařaďte do itineráře cesty.
+            Místa, kavárny, pláže, hotely a zážitky napříč celým světem nezávisle na trase. Uložte si je sem s fotkou a odkazem a kdykoliv je zařaďte do jakékoliv cesty.
           </p>
         </div>
 
         <button
           type="button"
-          onClick={() => setIsAddOpen(!isAddOpen)}
-          className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-2 self-start sm:self-auto"
+          onClick={() => {
+            if (isAddOpen) resetForm();
+            else setIsAddOpen(true);
+          }}
+          className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-2 self-start sm:self-auto shrink-0"
         >
           <Plus className="w-4 h-4" />
-          <span>{isAddOpen ? 'Zavřít formulář' : 'Přidat nový tip'}</span>
+          <span>{isAddOpen ? 'Zavřít formulář' : '+ Přidat nový tip'}</span>
         </button>
       </div>
 
-      {/* Add Tip Form (Expandable) */}
+      {/* Add / Edit Tip Form (Expandable) */}
       {isAddOpen && (
         <form
-          onSubmit={handleCreateTip}
+          onSubmit={handleSaveTip}
           className="p-5 sm:p-6 bg-white dark:bg-gray-800 rounded-3xl border border-amber-200 dark:border-amber-900/50 shadow-lg space-y-4 animate-scale-up"
         >
-          <div className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-700">
-            <Bookmark className="w-4 h-4 text-amber-500" />
-            <span>Nový tip do zásobárny</span>
+          <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-700">
+            <div className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Bookmark className="w-4 h-4 text-amber-500" />
+              <span>{editingTip ? `Upravit tip: ${editingTip.title}` : 'Nový tip do zásobárny'}</span>
+            </div>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -204,20 +263,20 @@ export const TipsView: React.FC<TipsViewProps> = ({
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Např. Cafe Chill, Coconut Tree Hill, pláž Goyambokka..."
+                placeholder="Např. Cafe Chill, Coconut Tree Hill, Pistachio Hotel Sapa..."
                 className="w-full p-2.5 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                Lokalita / Město
+                Lokalita / Město / Země
               </label>
               <input
                 type="text"
                 value={locationName}
                 onChange={(e) => setLocationName(e.target.value)}
-                placeholder="Např. Ella, Mirissa, Kandy, Tangalle..."
+                placeholder="Např. Ella, Mirissa, Sapa, Bali, Kréta..."
                 className="w-full p-2.5 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
@@ -240,6 +299,19 @@ export const TipsView: React.FC<TipsViewProps> = ({
                 <option value="transport">🚂 Doprava / Zážitek</option>
                 <option value="other">📍 Ostatní místa</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                Web / Booking URL odkaz
+              </label>
+              <input
+                type="url"
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
+                placeholder="https://www.booking.com/... nebo https://..."
+                className="w-full p-2.5 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -268,6 +340,67 @@ export const TipsView: React.FC<TipsViewProps> = ({
                 />
               </div>
             </div>
+
+            {/* Photo Section */}
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                Fotografie místa
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={photoUrl}
+                  onChange={(e) => setPhotoUrl(e.target.value)}
+                  placeholder="URL obrázku nebo vyfoťte mobilem..."
+                  className="flex-1 p-2.5 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                />
+
+                <label className="p-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white cursor-pointer shrink-0 transition-colors" title="Nahrát fotku z mobilu / fotoaparátu">
+                  <Camera className="w-4 h-4" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
+                </label>
+
+                {photoUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setPhotoUrl('')}
+                    className="p-2.5 rounded-xl bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 hover:bg-rose-200 shrink-0"
+                    title="Odebrat fotku"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Photo Preview */}
+              {photoUrl && (
+                <div className="mt-2 relative w-full h-28 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+                  <img src={photoUrl} alt="Náhled fotky" className="w-full h-full object-cover" />
+                </div>
+              )}
+
+              {/* Presets */}
+              {availablePresets.length > 0 && !photoUrl && (
+                <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] text-gray-400 font-medium">Doporučené fotky:</span>
+                  {availablePresets.map((pr) => (
+                    <button
+                      key={pr.url}
+                      type="button"
+                      onClick={() => setPhotoUrl(pr.url)}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 border border-amber-200/60 font-medium"
+                    >
+                      {pr.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
@@ -286,7 +419,7 @@ export const TipsView: React.FC<TipsViewProps> = ({
           <div className="flex items-center justify-end gap-2 pt-2">
             <button
               type="button"
-              onClick={() => setIsAddOpen(false)}
+              onClick={resetForm}
               className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
               Zrušit
@@ -294,10 +427,10 @@ export const TipsView: React.FC<TipsViewProps> = ({
             <button
               type="submit"
               disabled={submitting}
-              className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow transition-all flex items-center gap-1.5"
+              className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow transition-all flex items-center gap-1.5 active:scale-95"
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              <span>Uložit tip</span>
+              <span>{editingTip ? 'Uložit změny' : 'Uložit tip'}</span>
             </button>
           </div>
         </form>
@@ -373,32 +506,55 @@ export const TipsView: React.FC<TipsViewProps> = ({
           {filteredTips.map((tip) => (
             <div
               key={tip.id}
-              className={`p-5 rounded-3xl border transition-all flex flex-col justify-between ${
+              className={`rounded-3xl border transition-all flex flex-col justify-between overflow-hidden ${
                 tip.is_used
                   ? 'bg-gray-50/70 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700/60 opacity-80'
                   : 'bg-white dark:bg-gray-800 border-gray-200/80 dark:border-gray-700 shadow-sm hover:shadow-md'
               }`}
             >
-              <div className="space-y-2.5">
-                {/* Top badges */}
-                <div className="flex items-center justify-between gap-2">
+              {/* Optional Photo Header */}
+              {tip.photo_url && (
+                <div className="w-full h-44 bg-stone-100 dark:bg-gray-700 relative overflow-hidden">
+                  <img
+                    src={tip.photo_url}
+                    alt={tip.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
                   <span
-                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-white uppercase tracking-wider"
+                    className="absolute top-3 left-3 px-2.5 py-1 rounded-lg text-[10px] font-bold text-white uppercase tracking-wider shadow-sm"
                     style={{ backgroundColor: tip.category_color || '#546E7A' }}
                   >
                     {tip.category_label || tip.category_id}
                   </span>
-
-                  {tip.is_used ? (
-                    <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded-md text-[10px] font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> V itineráři
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 rounded-md text-[10px] font-bold">
-                      💡 Tip
-                    </span>
-                  )}
                 </div>
+              )}
+
+              <div className="p-5 space-y-2.5 flex-1">
+                {/* Top badges (if no photo) */}
+                {!tip.photo_url && (
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-white uppercase tracking-wider"
+                      style={{ backgroundColor: tip.category_color || '#546E7A' }}
+                    >
+                      {tip.category_label || tip.category_id}
+                    </span>
+
+                    {tip.is_used ? (
+                      <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 rounded-md text-[10px] font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> V itineráři
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 rounded-md text-[10px] font-bold">
+                        💡 Tip
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {/* Title & Location */}
                 <div>
@@ -413,6 +569,21 @@ export const TipsView: React.FC<TipsViewProps> = ({
                   )}
                 </div>
 
+                {/* Source / Web URL */}
+                {tip.source_url && (
+                  <div>
+                    <a
+                      href={tip.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-teal-600 dark:text-teal-400 hover:underline font-semibold"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate max-w-[220px]">Web / Rezervace</span>
+                    </a>
+                  </div>
+                )}
+
                 {/* Notes */}
                 {tip.notes && (
                   <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-3 bg-gray-50 dark:bg-gray-750 p-2.5 rounded-xl border border-gray-100 dark:border-gray-700/50">
@@ -422,10 +593,10 @@ export const TipsView: React.FC<TipsViewProps> = ({
               </div>
 
               {/* Bottom Actions */}
-              <div className="pt-4 mt-3 border-t border-gray-100 dark:border-gray-700 flex flex-col gap-2">
+              <div className="p-5 pt-0 mt-auto border-t border-gray-100 dark:border-gray-700">
                 {/* Promote to itinerary picker */}
                 {promotingTipId === tip.id ? (
-                  <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900/60 space-y-2">
+                  <div className="mt-3 p-2.5 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900/60 space-y-2">
                     <div className="text-[11px] font-bold text-amber-900 dark:text-amber-200">
                       Vyberte den cesty pro zařazení:
                     </div>
@@ -462,7 +633,7 @@ export const TipsView: React.FC<TipsViewProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between gap-1">
+                  <div className="pt-3 flex items-center justify-between gap-1">
                     <div className="flex items-center gap-1">
                       {tip.lat && tip.lng && onNavigateToMap && (
                         <button
@@ -474,6 +645,15 @@ export const TipsView: React.FC<TipsViewProps> = ({
                           <Navigation className="w-4 h-4" />
                         </button>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleStartEdit(tip)}
+                        title="Upravit tip (fotku, odkaz, text)"
+                        className="p-1.5 rounded-lg text-gray-500 hover:text-amber-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
 
                       <button
                         type="button"
@@ -497,7 +677,7 @@ export const TipsView: React.FC<TipsViewProps> = ({
                         className="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/50 dark:hover:bg-teal-900 text-teal-700 dark:text-teal-300 rounded-xl text-xs font-bold border border-teal-200 dark:border-teal-800 transition-colors flex items-center gap-1"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        <span>Přidat do itineráře</span>
+                        <span>Zařadit do trasy</span>
                       </button>
                     )}
                   </div>

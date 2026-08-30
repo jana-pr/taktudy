@@ -35,6 +35,21 @@ async function main() {
   // Init DB
   initDatabase();
 
+  // Allow empty body with Content-Type: application/json (e.g. from fetch without body) without throwing 400 Bad Request
+  fastify.addContentTypeParser('application/json', { parseAs: 'string' }, function (req, body, defaultDone) {
+    if (!body || !body.toString().trim()) {
+      defaultDone(null, {});
+      return;
+    }
+    try {
+      const json = JSON.parse(body.toString());
+      defaultDone(null, json);
+    } catch (err: any) {
+      err.statusCode = 400;
+      defaultDone(err, undefined);
+    }
+  });
+
   // CORS
   await fastify.register(cors, {
     origin: true,

@@ -369,7 +369,7 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) =
                   </span>
                   {act.is_enabled ? (
                     <span className="text-[10px] bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200 px-2 py-0.5 rounded-full font-bold">
-                      ZAPNUTO V ROZPOČTU
+                      V ROZPOČTU
                     </span>
                   ) : (
                     <span className="text-[10px] bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300 px-2 py-0.5 rounded-full font-bold">
