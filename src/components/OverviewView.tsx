@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FullTrip, Day, POI } from '../types';
 import { tripsApi } from '../api/client';
+import { calculateTripBudget } from '../utils/budgetCalculator';
 import {
   Calendar,
   Users,
@@ -49,16 +50,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   // Weather query region
   const weatherLocation = trip.country_region || (trip.title ? trip.title.split(' ')[0] : 'Srí Lanka');
 
-  // Budget calculation per person
-  const accommodationsTotal = accommodations.reduce((sum, a) => sum + (a.price_total || 0), 0);
-  const poisCostTotal = pois
-    .filter((p) => p.is_enabled !== false)
-    .reduce((sum, p) => sum + (p.cost_est || 0), 0);
-  const estimatedPerPerson = Math.round(
-    accommodationsTotal / (travelersCount || 1) +
-    poisCostTotal / (travelersCount || 1) +
-    (trip.id === 'trip_srilanka_2026' ? 1040 : 200)
-  );
+  // Unified Budget calculation
+  const budget = calculateTripBudget(trip);
+  const estimatedPerPerson = budget.averagePerPerson;
 
   // Notes state
   const [notesText, setNotesText] = useState(trip.notes || '');
@@ -149,7 +143,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               <DollarSign className="w-4 h-4 text-emerald-300" /> Rozpočet na osobu
             </div>
             <div className="font-semibold text-sm sm:text-base text-white">
-              ~${estimatedPerPerson.toLocaleString()} <span className="text-xs font-normal text-teal-200">USD / os.</span>
+              ~${estimatedPerPerson.toLocaleString()} <span className="text-xs font-normal text-teal-200">{budget.currency} / os.</span>
+            </div>
+            <div className="text-[10px] text-teal-300/80 mt-0.5">
+              Celkem: ${budget.grandTotal.toLocaleString()} {budget.currency}
             </div>
           </div>
 

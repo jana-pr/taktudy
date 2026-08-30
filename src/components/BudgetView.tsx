@@ -14,8 +14,10 @@ import {
   ToggleLeft,
   ToggleRight,
   Info,
+  ShieldCheck,
 } from 'lucide-react';
 import { tripsApi } from '../api/client';
+import { calculateTripBudget } from '../utils/budgetCalculator';
 
 interface BudgetViewProps {
   trip: FullTrip;
@@ -26,59 +28,10 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) =
   const [scenario, setScenario] = useState<'2+1' | 'triple'>(trip.room_scenario || '2+1');
   const [saving, setSaving] = useState(false);
 
-  const travelersCount = trip.travelers_count || 3;
-  const pois = trip.pois || [];
-  const accommodations = trip.accommodations || [];
-  const transportService = trip.transportServices?.[0] || {
-    total_price: 855,
-    service_name: 'Private car + English-speaking driver',
-  };
+  const budget = calculateTripBudget(trip, scenario);
+  const { travelersCount, daysCount, nightsCount, currency } = budget;
 
-  // Fixed estimate costs (per person)
-  const flightPerPerson = 850; // Letenka
-  const foodPerPerson = 400; // Jídlo a pití za 16 dní (~$25/den)
-  const otherPerPerson = 120; // Víza ($50), spropitné pro řidiče ($50), SIM ($20)
-
-  // Driver cost
-  const totalDriverCost = transportService.total_price || 855;
-  const driverPerPerson = Math.round(totalDriverCost / travelersCount);
-
-  // Train cost (Day 9)
-  const trainPoi = pois.find((p) => p.cost_category === 'train');
-  const trainPerPerson = trainPoi?.cost_est || 8;
-  const totalTrainCost = trainPerPerson * travelersCount;
-
-  // Hotel costs based on scenario
-  const totalHotelCost = accommodations.reduce((sum, acc) => {
-    if (scenario === '2+1') {
-      return sum + (acc.price_total || 0);
-    } else {
-      return sum + Math.round((acc.price_total || 0) * 0.75);
-    }
-  }, 0);
-
-  const hotelDoublePerPerson = Math.round(
-    accommodations.reduce((sum, acc) => {
-      const doubleRoomPrice = (acc.price_total || 0) - (acc.price_single || 0);
-      return sum + doubleRoomPrice / 2;
-    }, 0)
-  );
-
-  const hotelSinglePerPerson = Math.round(
-    accommodations.reduce((sum, acc) => {
-      return sum + (acc.price_single || Math.round((acc.price_total || 0) * 0.45));
-    }, 0)
-  );
-
-  const hotelTriplePerPerson = Math.round(totalHotelCost / travelersCount);
-
-  // Mandatory entrance tickets
-  const mandatoryPois = pois.filter((p) => p.is_mandatory && p.cost_category === 'tickets' && p.is_enabled);
-  const ticketsPerPerson = mandatoryPois.reduce((sum, p) => sum + (p.cost_est || 0), 0);
-  const totalTicketsCost = ticketsPerPerson * travelersCount;
-
-  // Optional / toggleable activities
-  const optionalActivities = pois.filter((p) => !p.is_mandatory && (p.cost_est || 0) > 0);
+  const optionalActivities = (trip.pois || []).filter((p) => !p.is_mandatory && (Number(p.cost_est) || 0) > 0);
 
   const handleToggleOptionalPoi = async (poi: POI) => {
     try {
@@ -105,33 +58,6 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) =
     }
   };
 
-  // Calculate active optional activities total
-  const activeOptionalPerPerson = optionalActivities
-    .filter((p) => p.is_enabled)
-    .reduce((sum, p) => sum + (p.cost_est || 0), 0);
-  const totalActiveOptional = activeOptionalPerPerson * travelersCount;
-
-  // Common costs per person (excluding hotels)
-  const commonPerPerson =
-    flightPerPerson +
-    driverPerPerson +
-    trainPerPerson +
-    ticketsPerPerson +
-    activeOptionalPerPerson +
-    foodPerPerson +
-    otherPerPerson;
-
-  // Final totals per person
-  const perPersonTotalDouble = commonPerPerson + hotelDoublePerPerson;
-  const perPersonTotalSingle = commonPerPerson + hotelSinglePerPerson;
-  const perPersonTotalTriple = commonPerPerson + hotelTriplePerPerson;
-
-  // Total trip cost
-  const grandTotal =
-    scenario === '2+1'
-      ? perPersonTotalDouble * 2 + perPersonTotalSingle
-      : perPersonTotalTriple * 3;
-
   return (
     <div className="space-y-4 sm:space-y-6 pb-24 max-w-5xl mx-auto w-full max-w-full overflow-x-hidden">
       {/* Grand Total Hero Card */}
@@ -142,50 +68,52 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) =
               <DollarSign className="w-4 h-4" /> Kompletní kalkulace rozpočtu
             </div>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1">
-              ${grandTotal.toLocaleString()} <span className="text-xl font-normal text-teal-200">USD</span>
+              ${budget.grandTotal.toLocaleString()} <span className="text-xl font-normal text-teal-200">{currency}</span>
             </h2>
             <p className="text-teal-200/90 text-xs sm:text-sm mt-1">
-              Celkové náklady celé cesty pro {travelersCount} cestující na 16 dní / 15 nocí
+              Celkové náklady celé cesty pro {travelersCount} {travelersCount === 1 ? 'cestujícího' : travelersCount < 5 ? 'cestující' : 'cestujících'} na {daysCount} {daysCount === 1 ? 'den' : daysCount < 5 ? 'dny' : 'dní'} / {nightsCount} {nightsCount === 1 ? 'noc' : nightsCount < 5 ? 'noci' : 'nocí'}
             </p>
           </div>
 
-          {/* Scenario selector */}
-          <div className="bg-white/10 backdrop-blur-md p-1.5 rounded-2xl flex items-center gap-1 border border-white/15">
-            <button
-              onClick={() => handleScenarioSwitch('2+1')}
-              disabled={saving}
-              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
-                scenario === '2+1' ? 'bg-white text-teal-900 shadow-md' : 'text-white/80 hover:text-white'
-              }`}
-            >
-              Pokoj 2 + 1
-            </button>
-            <button
-              onClick={() => handleScenarioSwitch('triple')}
-              disabled={saving}
-              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
-                scenario === 'triple' ? 'bg-white text-teal-900 shadow-md' : 'text-white/80 hover:text-white'
-              }`}
-            >
-              Pokoj pro 3
-            </button>
-          </div>
+          {/* Scenario selector ONLY if 3 travelers */}
+          {travelersCount === 3 && (
+            <div className="bg-white/10 backdrop-blur-md p-1.5 rounded-2xl flex items-center gap-1 border border-white/15">
+              <button
+                onClick={() => handleScenarioSwitch('2+1')}
+                disabled={saving}
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  scenario === '2+1' ? 'bg-white text-teal-900 shadow-md' : 'text-white/80 hover:text-white'
+                }`}
+              >
+                Pokoj 2 + 1
+              </button>
+              <button
+                onClick={() => handleScenarioSwitch('triple')}
+                disabled={saving}
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  scenario === 'triple' ? 'bg-white text-teal-900 shadow-md' : 'text-white/80 hover:text-white'
+                }`}
+              >
+                Pokoj pro 3
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Per-person Comparison Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 pt-6 border-t border-white/15">
-          {scenario === '2+1' ? (
+          {travelersCount === 3 && scenario === '2+1' ? (
             <>
               <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
                 <div className="text-xs text-teal-200 font-medium">
                   Cena / osoba (na dvoulůžkovém pokoji)
                 </div>
                 <div className="text-2xl sm:text-3xl font-bold mt-1">
-                  ${perPersonTotalDouble.toLocaleString()}{' '}
-                  <span className="text-sm font-normal text-teal-200">USD / os.</span>
+                  ${budget.perPersonTotalDouble.toLocaleString()}{' '}
+                  <span className="text-sm font-normal text-teal-200">{currency} / os.</span>
                 </div>
                 <div className="text-[11px] text-teal-300/80 mt-1">
-                  Společný hotelový pokoj ($ {hotelDoublePerPerson}) + podíl na společných nákladech ($ {commonPerPerson})
+                  Společný hotelový pokoj (${budget.hotelDoublePerPerson}) + podíl na společných nákladech (${budget.commonPerPerson})
                 </div>
               </div>
 
@@ -194,25 +122,25 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) =
                   Cena / osoba (samostatný single pokoj)
                 </div>
                 <div className="text-2xl sm:text-3xl font-bold mt-1">
-                  ${perPersonTotalSingle.toLocaleString()}{' '}
-                  <span className="text-sm font-normal text-teal-200">USD / os.</span>
+                  ${budget.perPersonTotalSingle.toLocaleString()}{' '}
+                  <span className="text-sm font-normal text-teal-200">{currency} / os.</span>
                 </div>
                 <div className="text-[11px] text-teal-300/80 mt-1">
-                  Vlastní hotelový pokoj ($ {hotelSinglePerPerson}) + podíl na společných nákladech ($ {commonPerPerson})
+                  Vlastní hotelový pokoj (${budget.hotelSinglePerPerson}) + podíl na společných nákladech (${budget.commonPerPerson})
                 </div>
               </div>
             </>
           ) : (
             <div className="sm:col-span-2 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
               <div className="text-xs text-teal-200 font-medium">
-                Rovnoměrná cena pro každého ze 3 cestujících
+                Průměrná cena pro každého cestujícího
               </div>
               <div className="text-2xl sm:text-3xl font-bold mt-1">
-                ${perPersonTotalTriple.toLocaleString()}{' '}
-                <span className="text-sm font-normal text-teal-200">USD / osoba</span>
+                ${budget.averagePerPerson.toLocaleString()}{' '}
+                <span className="text-sm font-normal text-teal-200">{currency} / osoba</span>
               </div>
               <div className="text-[11px] text-teal-300/80 mt-1">
-                Ubytování ve 3-lůžkovém pokoji ($ {hotelTriplePerPerson}) + společné náklady ($ {commonPerPerson})
+                Ubytování (${budget.hotelAveragePerPerson}) + podíl na společných nákladech (${budget.commonPerPerson})
               </div>
             </div>
           )}
@@ -226,22 +154,26 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) =
         </h3>
 
         <div className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
-          {/* Flights */}
-          <div className="py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 flex items-center justify-center">
-                <Plane className="w-4 h-4" />
+          {/* Flights (pokud jsou kalkulovány) */}
+          {(budget.totalFlightCost > 0 || trip.id === 'trip_srilanka_2026') && (
+            <div className="py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 flex items-center justify-center">
+                  <Plane className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900 dark:text-white">Letenky</div>
+                  <div className="text-xs text-gray-500">
+                    {budget.hasFlightBookings ? 'Dle potvrzených rezervací' : `Kalkulováno $${budget.flightPerPerson} / osoba`}
+                  </div>
+                </div>
               </div>
-              <div>
-                <div className="font-semibold text-gray-900 dark:text-white">Letenka (Praha ↔ Colombo)</div>
-                <div className="text-xs text-gray-500">Kalkulováno ${flightPerPerson} / osoba</div>
+              <div className="text-right font-bold text-gray-900 dark:text-white">
+                ${budget.totalFlightCost.toLocaleString()}{' '}
+                <span className="text-xs font-normal text-gray-500">(${budget.flightPerPerson}/os.)</span>
               </div>
             </div>
-            <div className="text-right font-bold text-gray-900 dark:text-white">
-              ${flightPerPerson * travelersCount}{' '}
-              <span className="text-xs font-normal text-gray-500">(${flightPerPerson}/os.)</span>
-            </div>
-          </div>
+          )}
 
           {/* Hotels */}
           <div className="py-3 flex items-center justify-between">
@@ -250,38 +182,44 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) =
                 <Bed className="w-4 h-4" />
               </div>
               <div>
-                <div className="font-semibold text-gray-900 dark:text-white">Ubytování a hotely (15 nocí)</div>
+                <div className="font-semibold text-gray-900 dark:text-white">Ubytování a hotely ({nightsCount} nocí)</div>
                 <div className="text-xs text-gray-500">
-                  {scenario === '2+1' ? '2 pokoje (1 dbl + 1 sgl)' : '1 pokoj pro 3 osoby'}
+                  {travelersCount === 3 && scenario === '2+1' ? '2 pokoje (1 dbl + 1 sgl)' : `${travelersCount} cestující`}
                 </div>
               </div>
             </div>
             <div className="text-right font-bold text-gray-900 dark:text-white">
-              ${totalHotelCost}{' '}
+              ${budget.totalHotelCost.toLocaleString()}{' '}
               <span className="text-xs font-normal text-gray-500">
-                ({scenario === '2+1' ? `$${hotelDoublePerPerson} dbl / $${hotelSinglePerPerson} sgl` : `$${hotelTriplePerPerson}/os.`})
+                ({travelersCount === 3 && scenario === '2+1'
+                  ? `$${budget.hotelDoublePerPerson} dbl / $${budget.hotelSinglePerPerson} sgl`
+                  : `$${budget.hotelAveragePerPerson}/os.`})
               </span>
             </div>
           </div>
 
-          {/* Private Driver */}
-          <div className="py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 flex items-center justify-center">
-                <Car className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="font-semibold text-gray-900 dark:text-white">Auto + anglicky mluvící řidič</div>
-                <div className="text-xs text-gray-500">
-                  Palivo, mýtné, ubytování/strava řidiče, transfery, převoz kufrů při vlaku
+          {/* Transport / Driver */}
+          {(budget.totalTransportCost > 0 || trip.id === 'trip_srilanka_2026') && (
+            <div className="py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 flex items-center justify-center">
+                  <Car className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900 dark:text-white">
+                    {budget.transportServiceName || 'Doprava a transfery'}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Auto, palivo, přesuny a přeprava
+                  </div>
                 </div>
               </div>
+              <div className="text-right font-bold text-gray-900 dark:text-white">
+                ${budget.totalTransportCost.toLocaleString()}{' '}
+                <span className="text-xs font-normal text-gray-500">(${budget.transportPerPerson}/os.)</span>
+              </div>
             </div>
-            <div className="text-right font-bold text-gray-900 dark:text-white">
-              ${totalDriverCost}{' '}
-              <span className="text-xs font-normal text-gray-500">(${driverPerPerson}/os.)</span>
-            </div>
-          </div>
+          )}
 
           {/* Entrance Tickets */}
           <div className="py-3 flex items-center justify-between">
@@ -290,34 +228,55 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) =
                 <Ticket className="w-4 h-4" />
               </div>
               <div>
-                <div className="font-semibold text-gray-900 dark:text-white">Povinné vstupy & památky</div>
+                <div className="font-semibold text-gray-900 dark:text-white">Povinné vstupy & památky z itineráře</div>
                 <div className="text-xs text-gray-500">
-                  Sigiriya ($36), Polonnaruwa ($30), Dambulla ($10), Chrám zubu ($15), Horton Plains ($35), Botanická ($12)
+                  {budget.mandatoryTicketsPerPerson > 0 ? 'Vstupy s povinnou návštěvou' : 'Zatím nezadány žádné vstupy'}
                 </div>
               </div>
             </div>
             <div className="text-right font-bold text-gray-900 dark:text-white">
-              ${totalTicketsCost}{' '}
-              <span className="text-xs font-normal text-gray-500">(${ticketsPerPerson}/os.)</span>
+              ${budget.totalMandatoryTicketsCost.toLocaleString()}{' '}
+              <span className="text-xs font-normal text-gray-500">(${budget.mandatoryTicketsPerPerson}/os.)</span>
             </div>
           </div>
 
           {/* Train */}
-          <div className="py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center">
-                <Train className="w-4 h-4" />
+          {budget.totalTrainCost > 0 && (
+            <div className="py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center">
+                  <Train className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900 dark:text-white">Vlaky a scénické přejezdy</div>
+                  <div className="text-xs text-gray-500">Jízdenky a místenky</div>
+                </div>
               </div>
-              <div>
-                <div className="font-semibold text-gray-900 dark:text-white">Scénický horský vlak (Nanu Oya → Ella)</div>
-                <div className="text-xs text-gray-500">Rezervovaná místa 2. třídy</div>
+              <div className="text-right font-bold text-gray-900 dark:text-white">
+                ${budget.totalTrainCost.toLocaleString()}{' '}
+                <span className="text-xs font-normal text-gray-500">(${budget.trainPerPerson}/os.)</span>
               </div>
             </div>
-            <div className="text-right font-bold text-gray-900 dark:text-white">
-              ${totalTrainCost}{' '}
-              <span className="text-xs font-normal text-gray-500">(${trainPerPerson}/os.)</span>
+          )}
+
+          {/* Visas & Insurance */}
+          {budget.totalVisaInsuranceCost > 0 && (
+            <div className="py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900 dark:text-white">Víza a cestovní pojištění</div>
+                  <div className="text-xs text-gray-500">Vstupní formality a pojistky</div>
+                </div>
+              </div>
+              <div className="text-right font-bold text-gray-900 dark:text-white">
+                ${budget.totalVisaInsuranceCost.toLocaleString()}{' '}
+                <span className="text-xs font-normal text-gray-500">(${budget.visaInsurancePerPerson}/os.)</span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Food */}
           <div className="py-3 flex items-center justify-between">
@@ -326,15 +285,34 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) =
                 <Utensils className="w-4 h-4" />
               </div>
               <div>
-                <div className="font-semibold text-gray-900 dark:text-white">Stravování, obědy a večeře</div>
-                <div className="text-xs text-gray-500">Odhady ~$25 / den / osoba (snídaně v hotelech v ceně)</div>
+                <div className="font-semibold text-gray-900 dark:text-white">Stravování, obědy a večeře ({daysCount} dní)</div>
+                <div className="text-xs text-gray-500">Odhady ~$25 / den / osoba (snídaně v ubytování)</div>
               </div>
             </div>
             <div className="text-right font-bold text-gray-900 dark:text-white">
-              ${foodPerPerson * travelersCount}{' '}
-              <span className="text-xs font-normal text-gray-500">(${foodPerPerson}/os.)</span>
+              ${budget.totalFoodCost.toLocaleString()}{' '}
+              <span className="text-xs font-normal text-gray-500">(${budget.foodPerPerson}/os.)</span>
             </div>
           </div>
+
+          {/* Pocket money / SIM / tips */}
+          {budget.totalOtherDailyCost > 0 && (
+            <div className="py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300 flex items-center justify-center">
+                  <DollarSign className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900 dark:text-white">Drobné výdaje, spropitné a místní SIM</div>
+                  <div className="text-xs text-gray-500">Doporučená rezerva v hotovosti</div>
+                </div>
+              </div>
+              <div className="text-right font-bold text-gray-900 dark:text-white">
+                ${budget.totalOtherDailyCost.toLocaleString()}{' '}
+                <span className="text-xs font-normal text-gray-500">(${budget.otherDailyPerPerson}/os.)</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
