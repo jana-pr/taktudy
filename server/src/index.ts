@@ -60,9 +60,9 @@ async function main() {
   // Cookies
   await fastify.register(cookie);
 
-  // Rate Limiting
+  // Rate Limiting (set to generous 5000/min to avoid 429 during syncing/batch operations)
   await fastify.register(rateLimit, {
-    max: 200,
+    max: 5000,
     timeWindow: '1 minute',
   });
 

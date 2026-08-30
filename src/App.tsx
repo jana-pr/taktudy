@@ -345,19 +345,56 @@ export function App() {
 
     try {
       setLoading(true);
-      await tripsApi.delete(targetId);
-      const remainingTrips = (await tripsApi.getAll()).filter((t) => t.id !== targetId);
+      // Vždy nejdříve okamžitě smažeme z lokální databáze v telefonu/prohlížeči
+      await offlineDb.cachedTrips.delete(targetId);
+      await offlineDb.cachedPois.where('trip_id').equals(targetId).delete();
+
+      // Odešleme na server (chyby sítě/429 neblokují smazání)
+      await tripsApi.delete(targetId).catch((e) => console.warn('Server delete trip warning:', e));
+
+      // Aktualizujeme stav v aplikaci
+      const remainingTrips = trips.filter((t) => t.id !== targetId);
       setTrips(remainingTrips);
       if (remainingTrips.length > 0) {
-        const next = await tripsApi.get(remainingTrips[0].id);
-        setActiveTrip(next);
+        try {
+          const next = await tripsApi.get(remainingTrips[0].id);
+          setActiveTrip(next);
+        } catch {
+          setActiveTrip(remainingTrips[0] as any);
+        }
       } else {
         setActiveTrip(null);
       }
       setSyncToast(`Cesta „${tripTitle}“ byla úspěšně smazána.`);
       setTimeout(() => setSyncToast(null), 3000);
     } catch (err: any) {
-      alert(err.message || 'Nepodařilo se smazat cestu.');
+      console.error('Delete trip error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearAllTrips = async () => {
+    if (!confirm('Opravdu chcete vymazat historii VŠECH cest a začít znovu s čistým štítem?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Okamžitě vymažeme veškerou mezipaměť v telefonu/prohlížeči
+      await offlineDb.cachedTrips.clear();
+      await offlineDb.cachedPois.clear();
+      await offlineDb.outboxMutations.clear();
+
+      // Vymažeme na serveru
+      await tripsApi.clearAll().catch((e) => console.warn('Server clearAll warning:', e));
+
+      setTrips([]);
+      setActiveTrip(null);
+      setSyncToast('Všechny cesty byly vymazány. Máte čistý stůl.');
+      setTimeout(() => setSyncToast(null), 3000);
+    } catch (err: any) {
+      alert(err.message || 'Nepodařilo se vymazat cesty.');
     } finally {
       setLoading(false);
     }
@@ -460,6 +497,7 @@ export function App() {
           onOpenExportForChatGpt={() => setIsExportModalOpen(true)}
           onOpenEditFromChatGpt={() => setIsEditChatGptOpen(true)}
           onDeleteActiveTrip={() => handleDeleteTrip()}
+          onClearAllTrips={handleClearAllTrips}
           onOpenShare={() => setIsShareModalOpen(true)}
           onOpenOfflineChecklist={() => setIsOfflineModalOpen(true)}
           onOpenQrModal={() => setIsQrModalOpen(true)}

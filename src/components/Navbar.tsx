@@ -32,6 +32,7 @@ interface NavbarProps {
   onOpenExportForChatGpt?: () => void;
   onOpenEditFromChatGpt?: () => void;
   onDeleteActiveTrip?: () => void;
+  onClearAllTrips?: () => void;
   onOpenShare: () => void;
   onOpenOfflineChecklist: () => void;
   onOpenQrModal?: () => void;
@@ -55,6 +56,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenExportForChatGpt,
   onOpenEditFromChatGpt,
   onDeleteActiveTrip,
+  onClearAllTrips,
   onOpenShare,
   onOpenOfflineChecklist,
   onOpenQrModal,
@@ -317,6 +319,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <div>
                           <div className="font-bold">Smazat tuto cestu</div>
                           <div className="text-[10px] text-rose-400 font-normal">Nevratně odstranit cestu a její data</div>
+                        </div>
+                      </button>
+                    )}
+
+                    {/* Vymazat všechny cesty (čistý start) */}
+                    {onClearAllTrips && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsManageOpen(false);
+                          onClearAllTrips();
+                        }}
+                        className="w-full px-3.5 py-2 text-left hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500 dark:text-stone-400 hover:text-rose-600 font-semibold flex items-center gap-2.5 transition-colors rounded-xl mt-0.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                        <div>
+                          <div className="font-bold text-[11px]">Vymazat všechny cesty (čistý start)</div>
+                          <div className="text-[9px] text-stone-400 font-normal">Smazat historii z webu i telefonu</div>
                         </div>
                       </button>
                     )}

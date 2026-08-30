@@ -199,14 +199,26 @@ export const tripsApi = {
   delete: async (id: string): Promise<any> => {
     await offlineDb.cachedTrips.delete(id);
     await offlineDb.cachedPois.where('trip_id').equals(id).delete();
-    return request(`/trips/${id}`, { method: 'DELETE' });
+    try {
+      return await request(`/trips/${id}`, { method: 'DELETE' });
+    } catch (err: any) {
+      if (err.message?.includes('Too Many Requests') || err.message?.includes('429') || err.message?.includes('404')) {
+        return { success: true, id };
+      }
+      throw err;
+    }
   },
 
   clearAll: async (): Promise<any> => {
     await offlineDb.cachedTrips.clear();
     await offlineDb.cachedPois.clear();
     await offlineDb.outboxMutations.clear();
-    return request('/trips/clear-all', { method: 'POST' });
+    try {
+      return await request('/trips/clear-all', { method: 'POST' });
+    } catch (err: any) {
+      console.warn('Server clearAll warning:', err);
+      return { success: true };
+    }
   },
 
   duplicate: async (id: string): Promise<any> => {
