@@ -1013,6 +1013,9 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
 
     const now = new Date().toISOString();
     db.prepare('UPDATE trips SET is_deleted = 1, updated_at = ? WHERE id = ?').run(now, id);
+    try {
+      db.prepare('UPDATE pois SET is_deleted = 1, updated_at = ? WHERE trip_id = ?').run(now, id);
+    } catch {}
     saveTripsBackupToJson();
     return { success: true, id };
   });
@@ -1027,6 +1030,13 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
       SET is_deleted = 1, updated_at = ?
       WHERE owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026' OR id = 'trip_srilanka_001'
     `).run(now, userId);
+    try {
+      db.prepare(`
+        UPDATE pois 
+        SET is_deleted = 1, updated_at = ?
+        WHERE trip_id IN (SELECT id FROM trips WHERE is_deleted = 1)
+      `).run(now);
+    } catch {}
     saveTripsBackupToJson();
 
     return { success: true, message: 'Všechny cesty byly úspěšně vymazány.' };

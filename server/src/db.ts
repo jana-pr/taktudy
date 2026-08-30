@@ -354,11 +354,6 @@ function runMigrations() {
     } catch {}
   }
 
-  // Restore any accidentally marked trips that have active pois or days
-  try {
-    db.exec(`UPDATE trips SET is_deleted = 0 WHERE id IN (SELECT DISTINCT trip_id FROM pois);`);
-  } catch {}
-
   // Backfill accommodation GPS coordinates based on known location keywords
   const locationCoords: Record<string, [number, number]> = {
     'negombo': [7.2089, 79.8358],
@@ -401,17 +396,9 @@ function seedDemoData() {
   const checkTrip = db.prepare('SELECT id FROM trips WHERE id = ?').get('trip_srilanka_2026');
   if (!checkTrip) {
     seedSriLanka2026Trip(user.id);
-  } else {
-    // Ensure it is not marked as deleted
-    db.prepare('UPDATE trips SET is_deleted = 0 WHERE id = ?').run('trip_srilanka_2026');
   }
 
-  // Restore any deleted trips that have valid data (pois or days)
-  try {
-    db.exec(`UPDATE trips SET is_deleted = 0 WHERE id IN (SELECT DISTINCT trip_id FROM pois);`);
-  } catch {}
-
-  // Seed demo bookings ONLY if trip_srilanka_2026 exists
+  // Seed demo bookings ONLY if trip_srilanka_2026 exists and is not deleted
   try {
     const checkTripExists = db.prepare('SELECT id FROM trips WHERE id = ?').get('trip_srilanka_2026');
     if (checkTripExists) {

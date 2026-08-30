@@ -14,6 +14,7 @@ import {
   Check,
   CalendarRange,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 
 interface AllTripsModalProps {
@@ -24,6 +25,8 @@ interface AllTripsModalProps {
   onSelectTrip: (trip: Trip) => void;
   onOpenNewTrip: () => void;
   onUpdateTripStatus?: (tripId: string, status: TripStatus) => Promise<void>;
+  onDeleteTrip?: (tripId: string) => void;
+  onClearAllTrips?: () => void;
 }
 
 export const AllTripsModal: React.FC<AllTripsModalProps> = ({
@@ -34,6 +37,8 @@ export const AllTripsModal: React.FC<AllTripsModalProps> = ({
   onSelectTrip,
   onOpenNewTrip,
   onUpdateTripStatus,
+  onDeleteTrip,
+  onClearAllTrips,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('all');
@@ -105,6 +110,20 @@ export const AllTripsModal: React.FC<AllTripsModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {onClearAllTrips && trips.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClearAllTrips();
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 font-bold text-xs flex items-center gap-1.5 transition-all border border-rose-200 dark:border-rose-800"
+                title="Vymazat všechny cesty a začít s čistým štítem"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                <span className="hidden md:inline">Vymazat vše</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => {
@@ -288,6 +307,20 @@ export const AllTripsModal: React.FC<AllTripsModalProps> = ({
                           <span className="text-[10px]">
                             {isCompleted ? 'Znovu otevřít' : 'Dokončit'}
                           </span>
+                        </button>
+                      )}
+
+                      {onDeleteTrip && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteTrip(trip.id);
+                          }}
+                          title={`Smazat cestu „${trip.title}“`}
+                          className="p-1.5 rounded-xl border border-transparent hover:border-rose-200 dark:hover:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-stone-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
 
