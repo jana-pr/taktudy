@@ -53,6 +53,27 @@ export const PlanView: React.FC<PlanViewProps> = ({
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   const [movingPoiId, setMovingPoiId] = useState<string | null>(null);
   const [selectedSafariPark, setSelectedSafariPark] = useState<string>('Minneriya National Park');
+  const [copiedWeatherToast, setCopiedWeatherToast] = useState<string | null>(null);
+
+  const handleWeatherClick = (locationName: string) => {
+    if (!locationName) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(locationName);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = locationName;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedWeatherToast(`📋 Lokalita „${locationName}“ byla zkopírována! Můžete ji vložit na yr.no.`);
+      setTimeout(() => setCopiedWeatherToast(null), 4000);
+    } catch (e) {
+      console.warn('Nelze zkopírovat do schránky:', e);
+    }
+  };
 
   const days = trip?.days || [];
   const pois = trip?.pois || [];
@@ -128,7 +149,12 @@ export const PlanView: React.FC<PlanViewProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-28 space-y-4 sm:space-y-6 w-full max-w-full overflow-x-hidden">
+    <div className="space-y-4 pb-24 max-w-5xl mx-auto w-full max-w-full overflow-x-hidden">
+      {copiedWeatherToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-stone-900/95 text-white px-4 py-2.5 rounded-xl shadow-xl border border-amber-500/50 text-xs font-semibold flex items-center gap-2 animate-bounce-short">
+          <span>{copiedWeatherToast}</span>
+        </div>
+      )}
       {/* Header Banner */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-700">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -214,8 +240,9 @@ export const PlanView: React.FC<PlanViewProps> = ({
                       href={`https://www.yr.no/en/search?q=${encodeURIComponent(day.overnight_location)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3 py-2 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
-                      title={`Předpověď počasí pro cíl dne (${day.overnight_location}) na yr.no`}
+                      onClick={() => handleWeatherClick(day.overnight_location!)}
+                      className="px-3 py-2 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 active:scale-95 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                      title={`Zkopírovat ${day.overnight_location} a otevřít předpověď počasí na yr.no`}
                     >
                       <CloudSun className="w-3.5 h-3.5 text-amber-500" />
                       <span>Počasí: {day.overnight_location}</span>

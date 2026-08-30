@@ -135,8 +135,36 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     window.open(url, '_blank');
   };
 
+  // State for weather copied feedback
+  const [copiedWeatherToast, setCopiedWeatherToast] = useState<string | null>(null);
+
+  const handleWeatherClick = (locationName: string) => {
+    if (!locationName) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(locationName);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = locationName;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedWeatherToast(`📋 Lokalita „${locationName}“ byla zkopírována! Můžete ji vložit na yr.no.`);
+      setTimeout(() => setCopiedWeatherToast(null), 4000);
+    } catch (e) {
+      console.warn('Nelze zkopírovat do schránky:', e);
+    }
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 pb-24 max-w-5xl mx-auto w-full max-w-full overflow-x-hidden">
+      {copiedWeatherToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-stone-900/95 text-white px-4 py-2.5 rounded-xl shadow-xl border border-teal-500/50 text-xs font-semibold flex items-center gap-2 animate-bounce-short">
+          <span>{copiedWeatherToast}</span>
+        </div>
+      )}
       {/* Hero Summary Card */}
       <div className="bg-gradient-to-br from-teal-900 via-teal-800 to-emerald-950 text-white rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xl relative overflow-hidden">
         <div className="absolute right-0 top-0 w-96 h-96 bg-white/5 rounded-full blur-3xl pointer-events-none" />
@@ -197,8 +225,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 href={weatherLocation ? `https://www.yr.no/en/search?q=${encodeURIComponent(weatherLocation)}` : 'https://www.yr.no/en'}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[10px] bg-teal-500/30 hover:bg-teal-500/50 text-teal-100 px-2 py-0.5 rounded-full font-bold transition-colors flex items-center gap-1"
-                title="Otevřít předpověď pro vybrané místo na yr.no v novém okně"
+                onClick={() => handleWeatherClick(weatherLocation)}
+                className="text-[10px] bg-teal-500/30 hover:bg-teal-500/50 active:scale-95 text-teal-100 px-2.5 py-0.5 rounded-full font-bold transition-all flex items-center gap-1 cursor-pointer"
+                title="Zkopírovat lokalitu a otevřít předpověď na yr.no"
               >
                 <span>yr.no</span>
                 <ExternalLink className="w-2.5 h-2.5" />
@@ -226,7 +255,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   href={weatherLocation ? `https://www.yr.no/en/search?q=${encodeURIComponent(weatherLocation)}` : 'https://www.yr.no/en'}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => handleWeatherClick(weatherLocation)}
                   className="font-semibold text-sm sm:text-base text-white hover:underline truncate block"
+                  title="Kliknutím zkopírujete lokalitu a přejdete na yr.no"
                 >
                   {weatherLocation}
                 </a>
@@ -234,7 +265,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
 
             <div className="text-[10px] text-teal-300/80 mt-1 flex items-center justify-between">
-              <span>Kliknutím na yr.no zobrazíte detail</span>
+              <span>Kliknutím zkopírujete lokalitu a otevřete yr.no</span>
             </div>
           </div>
         </div>
