@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import { POI, Category, Day, Tip, Accommodation } from '../types';
-import { Star, Layers, Plus, MapPin, Lightbulb, Bed, ExternalLink } from 'lucide-react';
+import { Star, Layers, Plus, MapPin, Lightbulb, Bed, ExternalLink, X, DollarSign, ShieldCheck, Navigation } from 'lucide-react';
 
 interface MapViewProps {
   pois: POI[];
@@ -119,6 +119,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
   // Toggle showing accommodations on map (default ON)
   const [showAccommodations, setShowAccommodations] = useState(true);
+  const [selectedAccommodation, setSelectedAccommodation] = useState<Accommodation | null>(null);
 
   // Filter POIs by Category (Multiselect), Top, and Day
   const filteredPois = safePois.filter((p) => {
@@ -153,8 +154,19 @@ export const MapView: React.FC<MapViewProps> = ({
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
 
-    // Handle map click to add point anywhere
+    // Handle map click to add point anywhere (ignoring marker or popup clicks)
     map.on('click', (e) => {
+      const originalTarget = e.originalEvent?.target as HTMLElement | null;
+      if (
+        originalTarget &&
+        (originalTarget.closest('.maplibregl-marker') ||
+          originalTarget.closest('.maplibregl-popup') ||
+          originalTarget.closest('.custom-hotel-marker') ||
+          originalTarget.closest('.custom-poi-marker') ||
+          originalTarget.closest('.custom-tip-marker'))
+      ) {
+        return;
+      }
       if (onMapClick) {
         onMapClick({ lat: e.lngLat.lat, lng: e.lngLat.lng });
       }
@@ -285,6 +297,11 @@ export const MapView: React.FC<MapViewProps> = ({
           </div>
         `);
 
+        accEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setSelectedAccommodation(acc);
+        });
+
         const marker = new maplibregl.Marker({ element: accEl })
           .setLngLat([coords.lng, coords.lat])
           .setPopup(popup)
@@ -302,6 +319,9 @@ export const MapView: React.FC<MapViewProps> = ({
 
         const tipEl = document.createElement('div');
         tipEl.className = 'custom-tip-marker cursor-pointer transform -translate-x-1/2 -translate-y-1/2 transition-transform hover:scale-125';
+        tipEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
         tipEl.innerHTML = `
           <div class="relative flex items-center justify-center">
             <div class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-lg border-2 border-white ring-2 ring-amber-300">
@@ -546,6 +566,135 @@ export const MapView: React.FC<MapViewProps> = ({
           </button>
         )}
       </div>
+
+      {/* Accommodation Detail Modal / Bottom Sheet */}
+      {selectedAccommodation && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-fade-in pointer-events-auto"
+          onClick={() => setSelectedAccommodation(null)}
+        >
+          <div
+            className="w-full sm:max-w-md bg-white dark:bg-outdoor-dark-card rounded-t-3xl sm:rounded-3xl shadow-2xl border border-stone-200 dark:border-stone-700 p-5 sm:p-6 space-y-4 max-h-[85vh] overflow-y-auto animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 pb-3 border-b border-stone-100 dark:border-stone-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-teal-100 dark:bg-teal-900/60 text-teal-700 dark:text-teal-300 flex items-center justify-center text-lg shadow-xs shrink-0">
+                  🏨
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">
+                    Ubytování • {(() => {
+                      const d = days?.find((day) => day.id === selectedAccommodation.day_id);
+                      return d ? `Den ${d.day_number}: ${d.title}` : 'V trase';
+                    })()}
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white leading-snug">
+                    {selectedAccommodation.hotel_name}
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedAccommodation(null)}
+                className="p-1.5 rounded-full hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition-colors shrink-0"
+                aria-label="Zavřít detail ubytování"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Details */}
+            <div className="space-y-2.5 text-xs">
+              {selectedAccommodation.location && (
+                <div className="flex items-start gap-2 text-stone-600 dark:text-stone-300">
+                  <MapPin className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                  <span>{selectedAccommodation.location}</span>
+                </div>
+              )}
+
+              {selectedAccommodation.room_type && (
+                <div className="flex items-center gap-2 text-stone-600 dark:text-stone-300">
+                  <Bed className="w-4 h-4 text-stone-400 shrink-0" />
+                  <span>
+                    {selectedAccommodation.room_type}{' '}
+                    {selectedAccommodation.rooms_count ? `(${selectedAccommodation.rooms_count} pokoje)` : ''}
+                  </span>
+                </div>
+              )}
+
+              {selectedAccommodation.price_total ? (
+                <div className="flex items-center gap-2 font-bold text-emerald-700 dark:text-emerald-400 text-sm">
+                  <DollarSign className="w-4 h-4 shrink-0" />
+                  <span>
+                    ${selectedAccommodation.price_total} {selectedAccommodation.price_currency || 'USD'}{' '}
+                    <span className="text-xs font-normal text-stone-500">/ noc</span>
+                  </span>
+                </div>
+              ) : null}
+
+              {selectedAccommodation.cancellation_policy && (
+                <div className="flex items-center gap-2 text-stone-600 dark:text-stone-300">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{selectedAccommodation.cancellation_policy}</span>
+                </div>
+              )}
+
+              {selectedAccommodation.notes && (
+                <div className="p-3 bg-stone-50 dark:bg-stone-800/60 rounded-2xl border border-stone-200/60 dark:border-stone-700/60 text-stone-600 dark:text-stone-300 text-[11px]">
+                  {selectedAccommodation.notes}
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="pt-2 space-y-2">
+              {selectedAccommodation.booking_url && (
+                <a
+                  href={selectedAccommodation.booking_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2.5 px-4 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all text-center"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Otevřít rezervaci na Booking.com ↗</span>
+                </a>
+              )}
+
+              {selectedAccommodation.location && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const query = encodeURIComponent(
+                      `${selectedAccommodation.hotel_name} ${selectedAccommodation.location}`
+                    );
+                    window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+                  }}
+                  className="w-full py-2 px-4 bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Navigation className="w-3.5 h-3.5 text-teal-600" />
+                  <span>Navigovat v Google Maps</span>
+                </button>
+              )}
+
+              {onNavigateToAccommodations && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedAccommodation(null);
+                    onNavigateToAccommodations();
+                  }}
+                  className="w-full py-2 px-4 bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-200 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Bed className="w-3.5 h-3.5" />
+                  <span>Přejít na seznam ubytování</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
