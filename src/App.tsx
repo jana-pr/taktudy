@@ -39,6 +39,8 @@ import {
   MapPin,
   Loader2,
   Lightbulb,
+  Compass,
+  Plus,
 } from 'lucide-react';
 
 export function App() {
