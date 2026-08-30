@@ -380,114 +380,123 @@ function seedDemoData() {
   // Demo trip is not auto-seeded on startup so user has a clean fresh start.
   // seedSriLanka2026Trip can be invoked on demand if user chooses demo template.
 
-  // Seed demo bookings if empty
+  // Seed demo bookings ONLY if trip_srilanka_2026 exists
   try {
-    const bookingsCount = (db.prepare('SELECT COUNT(*) as c FROM bookings WHERE trip_id = ?').get('trip_srilanka_2026') as any)?.c || 0;
-    if (bookingsCount === 0) {
-      const insertBooking = db.prepare(`
-        INSERT INTO bookings (
-          id, trip_id, type, title, provider, confirmation_number, booking_date,
-          price, currency, status, contact_phone, contact_email, notes, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, ?, ?)
-      `);
+    const checkTrip = db.prepare('SELECT id FROM trips WHERE id = ?').get('trip_srilanka_2026');
+    if (checkTrip) {
+      const bookingsCount = (db.prepare('SELECT COUNT(*) as c FROM bookings WHERE trip_id = ?').get('trip_srilanka_2026') as any)?.c || 0;
+      if (bookingsCount === 0) {
+        const insertBooking = db.prepare(`
+          INSERT INTO bookings (
+            id, trip_id, type, title, provider, confirmation_number, booking_date,
+            price, currency, status, contact_phone, contact_email, notes, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, ?, ?)
+        `);
 
-      insertBooking.run(
-        'bkg_1',
-        'trip_srilanka_2026',
-        'transport',
-        'Soukromé auto s anglicky mluvícím řidičem (15 dní)',
-        'Lanka Travel Drivers Co.',
-        'LTD-2026-SRI-091',
-        '2026-11-15',
-        855,
-        'confirmed',
-        '+94 77 123 4567',
-        'driver@lankatravel.lk',
-        'Zahrnuje: auto, řidiče, palivo, mýtné, ubytování i stravu řidiče a převoz zavazadel.',
-        now,
-        now
-      );
+        insertBooking.run(
+          'bkg_1',
+          'trip_srilanka_2026',
+          'transport',
+          'Soukromé auto s anglicky mluvícím řidičem (15 dní)',
+          'Lanka Travel Drivers Co.',
+          'LTD-2026-SRI-091',
+          '2026-11-15',
+          855,
+          'confirmed',
+          '+94 77 123 4567',
+          'driver@lankatravel.lk',
+          'Zahrnuje: auto, řidiče, palivo, mýtné, ubytování i stravu řidiče a převoz zavazadel.',
+          now,
+          now
+        );
 
-      insertBooking.run(
-        'bkg_2',
-        'trip_srilanka_2026',
-        'train',
-        'Scénický horský vlak: Kandy → Ella (1. třída vyhlídkový vůz)',
-        'Sri Lanka Railways',
-        'SLR-2027-EX-408',
-        '2026-12-01',
-        45,
-        'confirmed',
-        '+94 11 242 1281',
-        'reservations@railway.gov.lk',
-        'Rezervovaná sedadla v 1. třídě vyhlídkového vagónu Observation Saloon.',
-        now,
-        now
-      );
+        insertBooking.run(
+          'bkg_2',
+          'trip_srilanka_2026',
+          'train',
+          'Scénický horský vlak: Kandy → Ella (1. třída vyhlídkový vůz)',
+          'Sri Lanka Railways',
+          'SLR-2027-EX-408',
+          '2026-12-01',
+          45,
+          'confirmed',
+          '+94 11 242 1281',
+          'reservations@railway.gov.lk',
+          'Rezervovaná sedadla v 1. třídě vyhlídkového vagónu Observation Saloon.',
+          now,
+          now
+        );
 
-      insertBooking.run(
-        'bkg_3',
-        'trip_srilanka_2026',
-        'flight',
-        'Zpáteční letenky Praha (PRG) ⇄ Colombo (CMB)',
-        'Qatar Airways',
-        'QR-CEZ-8942',
-        '2026-10-05',
-        2400,
-        'confirmed',
-        '+420 222 123 456',
-        'support@qatarairways.com',
-        'Odlet 26. 12. 2026 z PRG, návrat 10. 1. 2027. Zavazadla 30 kg / osoba v ceně.',
-        now,
-        now
-      );
+        insertBooking.run(
+          'bkg_3',
+          'trip_srilanka_2026',
+          'flight',
+          'Zpáteční letenky Praha (PRG) ⇄ Colombo (CMB)',
+          'Qatar Airways',
+          'QR-CEZ-8942',
+          '2026-10-05',
+          2400,
+          'confirmed',
+          '+420 222 123 456',
+          'support@qatarairways.com',
+          'Odlet 26. 12. 2026 z PRG, návrat 10. 1. 2027. Zavazadla 30 kg / osoba v ceně.',
+          now,
+          now
+        );
 
-      insertBooking.run(
-        'bkg_4',
-        'trip_srilanka_2026',
-        'activity',
-        'Privátní ranní safari džíp v NP Yala s licencovaným stopařem',
-        'Yala Wild Safaris',
-        'YWS-7712',
-        '2026-12-10',
-        75,
-        'confirmed',
-        '+94 71 998 8776',
-        'safari@yalawild.lk',
-        'Odjezd z hotelu v 05:30, otevřený safari džíp 4x4 se sledováním levhartů a slonů.',
-        now,
-        now
-      );
+        insertBooking.run(
+          'bkg_4',
+          'trip_srilanka_2026',
+          'activity',
+          'Privátní ranní safari džíp v NP Yala s licencovaným stopařem',
+          'Yala Wild Safaris',
+          'YWS-7712',
+          '2026-12-10',
+          75,
+          'confirmed',
+          '+94 71 998 8776',
+          'safari@yalawild.lk',
+          'Odjezd z hotelu v 05:30, otevřený safari džíp 4x4 se sledováním levhartů a slonů.',
+          now,
+          now
+        );
 
-      insertBooking.run(
-        'bkg_5',
-        'trip_srilanka_2026',
-        'visa',
-        'Turistická víza ETA Srí Lanka (3x dospělý)',
-        'Department of Immigration & Emigration',
-        'ETA-LK-771239',
-        '2026-12-15',
-        150,
-        'confirmed',
-        null,
-        'eta@immigration.gov.lk',
-        'Schválená turistická víza s platností na 30 dní po vstupu do země.',
-        now,
-        now
-      );
+        insertBooking.run(
+          'bkg_5',
+          'trip_srilanka_2026',
+          'visa',
+          'Turistická víza ETA Srí Lanka (3x dospělý)',
+          'Department of Immigration & Emigration',
+          'ETA-LK-771239',
+          '2026-12-15',
+          150,
+          'confirmed',
+          null,
+          'eta@immigration.gov.lk',
+          'Schválená turistická víza s platností na 30 dní po vstupu do země.',
+          now,
+          now
+        );
+      }
     }
-  } catch {}
+  } catch (e) {
+    console.warn('Bookings seed skipped:', e);
+  }
 
-  // Seed demo tips if empty
-  const tipsCount = (db.prepare('SELECT COUNT(*) as c FROM tips WHERE user_id = ?').get(user.id) as any).c;
-  if (tipsCount === 0) {
-    const insertTip = db.prepare(`
-      INSERT INTO tips (id, user_id, trip_id, title, category_id, location_name, lat, lng, notes, is_used, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
-    `);
-    insertTip.run('tip_1', user.id, 'trip_srilanka_2026', 'Coconut Tree Hill', 'view', 'Mirissa', 5.9450, 80.4610, 'Ikonický kopec s palmami na útesu nad oceánem – nejlepší při západu slunce.', now, now);
-    insertTip.run('tip_2', user.id, 'trip_srilanka_2026', 'Cafe Chill', 'food', 'Ella', 6.8745, 81.0460, 'Vyhlášené bistro a bar s výborným curry, burgerem a skvělou večerní atmosférou.', now, now);
-    insertTip.run('tip_3', user.id, 'trip_srilanka_2026', 'Ambuluwawa Tower', 'view', 'Gampola (u Kandy)', 7.1697, 80.5489, 'Spirálovitá věž biodiverzity na skalním vrcholu s 360° panoramatem.', now, now);
+  // Seed demo tips if empty (global tips with trip_id = null so no foreign key constraint)
+  try {
+    const tipsCount = (db.prepare('SELECT COUNT(*) as c FROM tips WHERE user_id = ?').get(user.id) as any)?.c || 0;
+    if (tipsCount === 0) {
+      const insertTip = db.prepare(`
+        INSERT INTO tips (id, user_id, trip_id, title, category_id, location_name, lat, lng, notes, is_used, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+      `);
+      insertTip.run('tip_1', user.id, null, 'Coconut Tree Hill', 'view', 'Mirissa', 5.9450, 80.4610, 'Ikonický kopec s palmami na útesu nad oceánem – nejlepší při západu slunce.', now, now);
+      insertTip.run('tip_2', user.id, null, 'Cafe Chill', 'food', 'Ella', 6.8745, 81.0460, 'Vyhlášené bistro a bar s výborným curry, burgerem a skvělou večerní atmosférou.', now, now);
+      insertTip.run('tip_3', user.id, null, 'Ambuluwawa Tower', 'view', 'Gampola (u Kandy)', 7.1697, 80.5489, 'Spirálovitá věž biodiverzity na skalním vrcholu s 360° panoramatem.', now, now);
+    }
+  } catch (e) {
+    console.warn('Tips seed skipped:', e);
   }
 }
 
