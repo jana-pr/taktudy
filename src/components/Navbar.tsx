@@ -37,6 +37,7 @@ interface NavbarProps {
   onOpenOfflineChecklist: () => void;
   onOpenQrModal?: () => void;
   onOpenTips?: () => void;
+  onOpenPoiManager?: () => void;
   activeTab?: string;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
@@ -62,6 +63,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenOfflineChecklist,
   onOpenQrModal,
   onOpenTips,
+  onOpenPoiManager,
   activeTab,
   isDarkMode,
   onToggleDarkMode,
@@ -212,6 +214,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <div>
                           <div className="font-bold">Nastavení cesty</div>
                           <div className="text-[10px] text-stone-400 font-normal">Název, motto, termín cesty</div>
+                        </div>
+                      </button>
+                    )}
+
+                    {/* Správa zájmových bodů */}
+                    {onOpenPoiManager && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsManageOpen(false);
+                          onOpenPoiManager();
+                        }}
+                        className="w-full px-3.5 py-2.5 text-left hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-200 font-semibold flex items-center gap-2.5 transition-colors"
+                      >
+                        <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <div>
+                          <div className="font-bold">Správa zájmových bodů</div>
+                          <div className="text-[10px] text-stone-400 font-normal">Editovat popisy, fotografie a GPS souřadnice</div>
                         </div>
                       </button>
                     )}

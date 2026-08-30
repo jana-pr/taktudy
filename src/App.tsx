@@ -26,6 +26,7 @@ import { MobileAppModal } from './components/MobileAppModal';
 import { TipsView } from './components/TipsView';
 import { ExportTripModal } from './components/ExportTripModal';
 import { EditRouteFromChatGptModal } from './components/EditRouteFromChatGptModal';
+import { PoiManagerModal } from './components/PoiManagerModal';
 import { SharedTripView } from './components/SharedTripView';
 import { AuthModal } from './components/AuthModal';
 import {
@@ -86,6 +87,7 @@ export function App() {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isEditChatGptOpen, setIsEditChatGptOpen] = useState(false);
+  const [isPoiManagerOpen, setIsPoiManagerOpen] = useState(false);
   const [mapClickCoords, setMapClickCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Theme & Offline Status
@@ -504,6 +506,7 @@ export function App() {
           onOpenOfflineChecklist={() => setIsOfflineModalOpen(true)}
           onOpenQrModal={() => setIsQrModalOpen(true)}
           onOpenTips={() => setActiveTab('tips')}
+          onOpenPoiManager={() => setIsPoiManagerOpen(true)}
           activeTab={activeTab}
           isDarkMode={isDarkMode}
           onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
@@ -931,6 +934,16 @@ export function App() {
         onClose={() => setIsEditChatGptOpen(false)}
         onTripUpdated={refreshActiveTrip}
       />
+
+      {/* Správa zájmových bodů cesty (popis, foto, GPS) */}
+      {activeTrip && (
+        <PoiManagerModal
+          trip={activeTrip}
+          isOpen={isPoiManagerOpen}
+          onClose={() => setIsPoiManagerOpen(false)}
+          onTripUpdated={refreshActiveTrip}
+        />
+      )}
 
       {/* Floating Sync Toast Notification */}
       {syncToast && (
