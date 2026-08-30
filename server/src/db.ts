@@ -397,13 +397,24 @@ function seedDemoData() {
     user = { id: userId };
   }
 
-  // Demo trip is not auto-seeded on startup so user has a clean fresh start.
-  // seedSriLanka2026Trip can be invoked on demand if user chooses demo template.
+  // Ensure demo user has the main reference trip if no trips exist or if trip_srilanka_2026 is missing
+  const checkTrip = db.prepare('SELECT id FROM trips WHERE id = ?').get('trip_srilanka_2026');
+  if (!checkTrip) {
+    seedSriLanka2026Trip(user.id);
+  } else {
+    // Ensure it is not marked as deleted
+    db.prepare('UPDATE trips SET is_deleted = 0 WHERE id = ?').run('trip_srilanka_2026');
+  }
+
+  // Restore any deleted trips that have valid data (pois or days)
+  try {
+    db.exec(`UPDATE trips SET is_deleted = 0 WHERE id IN (SELECT DISTINCT trip_id FROM pois);`);
+  } catch {}
 
   // Seed demo bookings ONLY if trip_srilanka_2026 exists
   try {
-    const checkTrip = db.prepare('SELECT id FROM trips WHERE id = ?').get('trip_srilanka_2026');
-    if (checkTrip) {
+    const checkTripExists = db.prepare('SELECT id FROM trips WHERE id = ?').get('trip_srilanka_2026');
+    if (checkTripExists) {
       const bookingsCount = (db.prepare('SELECT COUNT(*) as c FROM bookings WHERE trip_id = ?').get('trip_srilanka_2026') as any)?.c || 0;
       if (bookingsCount === 0) {
         const insertBooking = db.prepare(`

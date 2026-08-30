@@ -836,18 +836,26 @@ export function App() {
             <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
               <button
                 type="button"
-                onClick={() => setIsNewTripModalOpen(true)}
+                onClick={async () => {
+                  try {
+                    await tripsApi.createFromTemplate('srilanka_2026');
+                    await loadData();
+                  } catch (e) {
+                    setIsNewTripModalOpen(true);
+                  }
+                }}
                 className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
               >
-                <Plus className="w-4 h-4" />
-                <span>+ Vytvořit novou cestu</span>
+                <Sparkles className="w-4 h-4" />
+                <span>Obnovit cestu Srí Lanka</span>
               </button>
               <button
                 type="button"
                 onClick={() => setIsNewTripModalOpen(true)}
                 className="px-5 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 font-semibold text-xs transition-all flex items-center justify-center gap-2"
               >
-                <span>Importovat z ChatGPT</span>
+                <Plus className="w-4 h-4" />
+                <span>+ Vytvořit novou cestu</span>
               </button>
             </div>
           </div>
