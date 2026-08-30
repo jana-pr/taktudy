@@ -5,6 +5,25 @@ import { SyncMutation } from '../src/types.js';
 describe('Tak tudy! Offline Sync & Acceptance Criteria Tests', () => {
   beforeAll(() => {
     initDatabase();
+    const demoUser = db.prepare('SELECT id FROM users WHERE email = ?').get('demo@taktudy.app') as any;
+    const now = new Date().toISOString();
+
+    db.prepare(`
+      INSERT OR REPLACE INTO trips (id, owner_id, title, motto, status, travelers_count, created_at, updated_at, is_deleted)
+      VALUES ('trip_srilanka_001', ?, 'Srí Lanka — okruh', 'Plánuji, abych měla svobodu', 'active', 3, ?, ?, 0)
+    `).run(demoUser ? demoUser.id : 'usr_demo_001', now, now);
+
+    db.prepare(`
+      INSERT OR REPLACE INTO stages (id, trip_id, title, sort_order, has_detail, version, created_at, updated_at)
+      VALUES 
+        ('stg_sync_1', 'trip_srilanka_001', 'Kandy a okolí', 1, 1, 1, ?, ?),
+        ('stg_sync_2', 'trip_srilanka_001', 'Ella a čajové plantáže', 2, 0, 1, ?, ?)
+    `).run(now, now, now, now);
+
+    db.prepare(`
+      INSERT OR REPLACE INTO pois (id, trip_id, category_id, name, is_top, lat, lng, version, is_deleted, created_at, updated_at)
+      VALUES ('poi_nine_arches', 'trip_srilanka_001', 'view', 'Nine Arches Bridge', 1, 6.876, 81.060, 1, 0, ?, ?)
+    `).run(now, now);
   });
 
   it('AC-10 & AC-13: Offline mutation sync creates POI in central database', () => {

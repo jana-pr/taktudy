@@ -6,6 +6,14 @@ import { initDatabase, db, seedSriLanka2026Trip } from '../src/db.js';
 describe('Tak tudy! — Rozšíření o import a AI návrh trasy (Tests)', () => {
   beforeAll(() => {
     initDatabase();
+    const demoUser = db.prepare('SELECT id FROM users WHERE email = ?').get('demo@taktudy.app') as any;
+    const existing = db.prepare('SELECT id FROM trips WHERE id = ?').get('trip_srilanka_2026');
+    if (existing) {
+      db.prepare('UPDATE trips SET is_deleted = 0 WHERE id = ?').run('trip_srilanka_2026');
+      db.prepare('UPDATE pois SET is_deleted = 0 WHERE trip_id = ?').run('trip_srilanka_2026');
+    } else if (demoUser) {
+      seedSriLanka2026Trip(demoUser.id);
+    }
   });
 
   it('1. GPX Import: správně parsuje body zájmu, trasu a vytvoří dny', () => {

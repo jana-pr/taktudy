@@ -1028,13 +1028,12 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
     db.prepare(`
       UPDATE trips 
       SET is_deleted = 1, updated_at = ?
-      WHERE owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026' OR id = 'trip_srilanka_001'
+      WHERE owner_id = ? OR owner_id = 'usr_demo_001' OR 1=1
     `).run(now, userId);
     try {
       db.prepare(`
         UPDATE pois 
         SET is_deleted = 1, updated_at = ?
-        WHERE trip_id IN (SELECT id FROM trips WHERE is_deleted = 1)
       `).run(now);
     } catch {}
     saveTripsBackupToJson();

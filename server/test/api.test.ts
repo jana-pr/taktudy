@@ -6,6 +6,40 @@ import { parseUrlSafely } from '../src/url-parser.js';
 describe('Tak tudy! Backend & Security Tests', () => {
   beforeAll(() => {
     initDatabase();
+    const demoUser = db.prepare('SELECT id FROM users WHERE email = ?').get('demo@taktudy.app') as any;
+    const now = new Date().toISOString();
+    
+    // Seed trip_srilanka_001 if needed for test assertions
+    db.prepare(`
+      INSERT OR REPLACE INTO trips (id, owner_id, title, motto, status, travelers_count, created_at, updated_at, is_deleted)
+      VALUES ('trip_srilanka_001', ?, 'Srí Lanka — okruh', 'Plánuji, abych měla svobodu', 'active', 3, ?, ?, 0)
+    `).run(demoUser.id, now, now);
+
+    db.prepare(`
+      INSERT OR REPLACE INTO stages (id, trip_id, title, sort_order, has_detail, version, created_at, updated_at)
+      VALUES 
+        ('stg_test_1', 'trip_srilanka_001', 'Kulturní trojúhelník', 1, 1, 1, ?, ?),
+        ('stg_test_2', 'trip_srilanka_001', 'Vysočina a čaj', 2, 1, 1, ?, ?)
+    `).run(now, now, now, now);
+
+    db.prepare(`
+      INSERT OR REPLACE INTO days (id, trip_id, stage_id, day_number, specific_date, title, created_at, updated_at)
+      VALUES ('day_test_1', 'trip_srilanka_001', 'stg_test_1', 1, '2026-12-26', 'Den 1', ?, ?)
+    `).run(now, now);
+
+    const testPois = [
+      { id: 'poi_test_1', name: 'Sigiriya Rock', is_top: 1, lat: 7.957, lng: 80.760 },
+      { id: 'poi_test_2', name: 'Dambulla Temple', is_top: 1, lat: 7.856, lng: 80.648 },
+      { id: 'poi_test_3', name: 'Kandy Lake', is_top: 0, lat: 7.293, lng: 80.641 },
+      { id: 'poi_test_4', name: 'Ella Rock', is_top: 0, lat: 6.855, lng: 81.050 }
+    ];
+
+    for (const p of testPois) {
+      db.prepare(`
+        INSERT OR REPLACE INTO pois (id, trip_id, stage_id, day_id, category_id, name, is_top, lat, lng, is_deleted, created_at, updated_at)
+        VALUES (?, 'trip_srilanka_001', 'stg_test_1', 'day_test_1', 'monument', ?, ?, ?, ?, 0, ?, ?)
+      `).run(p.id, p.name, p.is_top, p.lat, p.lng, now, now);
+    }
   });
 
   it('AC-15: Persistence - Database initializes and contains demo user and seed categories', () => {

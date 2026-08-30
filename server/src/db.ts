@@ -392,114 +392,8 @@ function seedDemoData() {
     user = { id: userId };
   }
 
-  // Ensure demo user has the main reference trip if no trips exist or if trip_srilanka_2026 is missing
-  const checkTrip = db.prepare('SELECT id FROM trips WHERE id = ?').get('trip_srilanka_2026');
-  if (!checkTrip) {
-    seedSriLanka2026Trip(user.id);
-  }
-
-  // Seed demo bookings ONLY if trip_srilanka_2026 exists and is not deleted
-  try {
-    const checkTripExists = db.prepare('SELECT id FROM trips WHERE id = ?').get('trip_srilanka_2026');
-    if (checkTripExists) {
-      const bookingsCount = (db.prepare('SELECT COUNT(*) as c FROM bookings WHERE trip_id = ?').get('trip_srilanka_2026') as any)?.c || 0;
-      if (bookingsCount === 0) {
-        const insertBooking = db.prepare(`
-          INSERT INTO bookings (
-            id, trip_id, type, title, provider, confirmation_number, booking_date,
-            price, currency, status, contact_phone, contact_email, notes, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, ?, ?)
-        `);
-
-        insertBooking.run(
-          'bkg_1',
-          'trip_srilanka_2026',
-          'transport',
-          'Soukromé auto s anglicky mluvícím řidičem (15 dní)',
-          'Lanka Travel Drivers Co.',
-          'LTD-2026-SRI-091',
-          '2026-11-15',
-          855,
-          'confirmed',
-          '+94 77 123 4567',
-          'driver@lankatravel.lk',
-          'Zahrnuje: auto, řidiče, palivo, mýtné, ubytování i stravu řidiče a převoz zavazadel.',
-          now,
-          now
-        );
-
-        insertBooking.run(
-          'bkg_2',
-          'trip_srilanka_2026',
-          'train',
-          'Scénický horský vlak: Kandy → Ella (1. třída vyhlídkový vůz)',
-          'Sri Lanka Railways',
-          'SLR-2027-EX-408',
-          '2026-12-01',
-          45,
-          'confirmed',
-          '+94 11 242 1281',
-          'reservations@railway.gov.lk',
-          'Rezervovaná sedadla v 1. třídě vyhlídkového vagónu Observation Saloon.',
-          now,
-          now
-        );
-
-        insertBooking.run(
-          'bkg_3',
-          'trip_srilanka_2026',
-          'flight',
-          'Zpáteční letenky Praha (PRG) ⇄ Colombo (CMB)',
-          'Qatar Airways',
-          'QR-CEZ-8942',
-          '2026-10-05',
-          2400,
-          'confirmed',
-          '+420 222 123 456',
-          'support@qatarairways.com',
-          'Odlet 26. 12. 2026 z PRG, návrat 10. 1. 2027. Zavazadla 30 kg / osoba v ceně.',
-          now,
-          now
-        );
-
-        insertBooking.run(
-          'bkg_4',
-          'trip_srilanka_2026',
-          'activity',
-          'Privátní ranní safari džíp v NP Yala s licencovaným stopařem',
-          'Yala Wild Safaris',
-          'YWS-7712',
-          '2026-12-10',
-          75,
-          'confirmed',
-          '+94 71 998 8776',
-          'safari@yalawild.lk',
-          'Odjezd z hotelu v 05:30, otevřený safari džíp 4x4 se sledováním levhartů a slonů.',
-          now,
-          now
-        );
-
-        insertBooking.run(
-          'bkg_5',
-          'trip_srilanka_2026',
-          'visa',
-          'Turistická víza ETA Srí Lanka (3x dospělý)',
-          'Department of Immigration & Emigration',
-          'ETA-LK-771239',
-          '2026-12-15',
-          150,
-          'confirmed',
-          null,
-          'eta@immigration.gov.lk',
-          'Schválená turistická víza s platností na 30 dní po vstupu do země.',
-          now,
-          now
-        );
-      }
-    }
-  } catch (e) {
-    console.warn('Bookings seed skipped:', e);
-  }
+  // Trips and bookings are not auto-seeded on startup so user has a clean fresh start.
+  // seedSriLanka2026Trip can be invoked on demand when creating from template.
 }
 
 export function seedSriLanka2026Trip(userId: string) {
@@ -508,7 +402,7 @@ export function seedSriLanka2026Trip(userId: string) {
 
   // Create main trip
   db.prepare(`
-    INSERT INTO trips (
+    INSERT OR REPLACE INTO trips (
       id, owner_id, title, motto, status, country_region, travelers_count,
       primary_transport, room_scenario, budget_currency, notes,
       start_date, end_date, bounding_box, version, is_deleted, created_at, updated_at
@@ -1661,7 +1555,7 @@ export function restoreTripsFromBackupJson() {
     if (!fs.existsSync(BACKUP_FILE)) return;
     const raw = fs.readFileSync(BACKUP_FILE, 'utf-8');
     const data = JSON.parse(raw);
-    if (!data || !Array.isArray(data.trips)) return;
+    if (!data || !Array.isArray(data.trips) || data.trips.length === 0) return;
 
     for (const t of data.trips) {
       const existing = db.prepare('SELECT id FROM trips WHERE id = ?').get(t.id);
