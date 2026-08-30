@@ -509,7 +509,7 @@ export function App() {
           onOpenShare={() => setIsShareModalOpen(true)}
           onOpenOfflineChecklist={() => setIsOfflineModalOpen(true)}
           onOpenQrModal={() => setIsQrModalOpen(true)}
-          onOpenTips={() => setActiveTab('tips')}
+          onOpenTips={() => setActiveTab(activeTab === 'tips' ? 'overview' : 'tips')}
           onOpenPoiManager={() => setIsPoiManagerOpen(true)}
           activeTab={activeTab}
           isDarkMode={isDarkMode}
@@ -765,6 +765,7 @@ export function App() {
             {activeTab === 'tips' && (
               <TipsView
                 activeTrip={null}
+                onClose={() => setActiveTab('overview')}
                 onNavigateToMap={(lat, lng) => {
                   setActiveTab('map');
                 }}
@@ -775,6 +776,7 @@ export function App() {
         ) : activeTab === 'tips' ? (
           <TipsView
             activeTrip={null}
+            onClose={() => setActiveTab('overview')}
             onNavigateToMap={() => setActiveTab('map')}
             onTripUpdated={refreshActiveTrip}
           />

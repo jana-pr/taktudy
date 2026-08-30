@@ -27,12 +27,14 @@ interface TipsViewProps {
   activeTrip: FullTrip | null;
   onNavigateToMap?: (lat: number, lng: number) => void;
   onTripUpdated?: () => Promise<void>;
+  onClose?: () => void;
 }
 
 export const TipsView: React.FC<TipsViewProps> = ({
   activeTrip,
   onNavigateToMap,
   onTripUpdated,
+  onClose,
 }) => {
   const [tips, setTips] = useState<Tip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -258,11 +260,23 @@ export const TipsView: React.FC<TipsViewProps> = ({
               if (isAddOpen) resetForm();
               else setIsAddOpen(true);
             }}
-            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-2 shrink-0"
+            className="px-4 sm:px-5 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-2 shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>{isAddOpen ? 'Zavřít formulář' : '+ Přidat nový tip'}</span>
           </button>
+
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 bg-stone-900 hover:bg-stone-800 dark:bg-stone-700 dark:hover:bg-stone-600 active:scale-95 text-white font-bold rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-1.5 shrink-0"
+              title="Zavřít tipy a vrátit se k aktivní trase"
+            >
+              <X className="w-4 h-4" />
+              <span>Zavřít tipy ✕</span>
+            </button>
+          )}
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify';
-import { db } from '../db.js';
+import { db, saveTripsBackupToJson } from '../db.js';
 import { z } from 'zod';
 import crypto from 'node:crypto';
 import { parseRouteFile } from '../importers/route-importer.js';
@@ -24,6 +24,203 @@ const UpdateTripSchema = CreateTripSchema.partial();
 
 export const tripRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', fastify.authenticate);
+
+  // Restore full trip from client offline store (prevents trip loss on Render redeploy)
+  fastify.post('/restore-full', async (request, reply) => {
+    const userId = (request.user as any).id;
+    const { trip, pois, days, accommodations, bookings } = (request.body as any) || {};
+
+    if (!trip || !trip.id || !trip.title) {
+      return reply.status(400).send({ error: 'Neplatná data pro obnovení cesty.' });
+    }
+
+    const tripId = trip.id;
+    const now = new Date().toISOString();
+
+    db.exec('BEGIN');
+    try {
+      // 1. Insert or update trip
+      db.prepare(`
+        INSERT OR REPLACE INTO trips (
+          id, owner_id, title, motto, status, country_region, travelers_count,
+          primary_transport, room_scenario, budget_currency, notes,
+          start_date, end_date, bounding_box, route_url, version, is_deleted, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+      `).run(
+        tripId,
+        userId,
+        trip.title,
+        trip.motto || null,
+        trip.status || 'planning',
+        trip.country_region || null,
+        trip.travelers_count || 3,
+        trip.primary_transport || 'Soukromé auto s řidičem',
+        trip.room_scenario || '2+1',
+        trip.budget_currency || 'USD',
+        trip.notes || null,
+        trip.start_date || null,
+        trip.end_date || null,
+        trip.bounding_box ? (typeof trip.bounding_box === 'string' ? trip.bounding_box : JSON.stringify(trip.bounding_box)) : null,
+        trip.route_url || null,
+        trip.version || 1,
+        trip.created_at || now,
+        now
+      );
+
+      // 2. Restore days if supplied
+      if (Array.isArray(days) && days.length > 0) {
+        db.prepare('DELETE FROM days WHERE trip_id = ?').run(tripId);
+        const insertDay = db.prepare(`
+          INSERT INTO days (
+            id, trip_id, day_number, specific_date, title, notes,
+            start_location, overnight_location, transit_time_est, distance_km, transport_mode,
+            has_detail, version, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
+        `);
+        for (const d of days) {
+          insertDay.run(
+            d.id || `day_${crypto.randomUUID()}`,
+            tripId,
+            d.day_number,
+            d.specific_date || d.date || null,
+            d.title || `Den ${d.day_number}`,
+            d.notes || d.activities || null,
+            d.start_location || null,
+            d.overnight_location || null,
+            d.transit_time_est || null,
+            d.distance_km || 0,
+            d.transport_mode || 'Auto',
+            now,
+            now
+          );
+        }
+      }
+
+      // 3. Restore POIs if supplied
+      if (Array.isArray(pois) && pois.length > 0) {
+        db.prepare('DELETE FROM pois WHERE trip_id = ?').run(tripId);
+        const insertPoi = db.prepare(`
+          INSERT INTO pois (
+            id, trip_id, day_id, category_id, name, is_top, lat, lng,
+            description, private_notes, opening_hours, source_url,
+            time_mode, target_time, visit_status, main_photo_url,
+            why_visit, recommended_duration, cost_est, cost_category,
+            is_mandatory, is_enabled, sort_order, version, is_deleted, created_at, updated_at
+          ) VALUES (
+            ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?,
+            ?, ?, ?, ?,
+            ?, ?, ?, ?,
+            ?, ?, ?, 1, 0, ?, ?
+          )
+        `);
+        pois.forEach((p: any, idx: number) => {
+          insertPoi.run(
+            p.id || `poi_${crypto.randomUUID()}`,
+            tripId,
+            p.day_id || null,
+            p.category_id || 'other',
+            p.name || 'Bod zájmu',
+            p.is_top ? 1 : 0,
+            p.lat !== undefined ? Number(p.lat) : 0,
+            p.lng !== undefined ? Number(p.lng) : 0,
+            p.description || null,
+            p.private_notes || null,
+            p.opening_hours || null,
+            p.source_url || null,
+            p.time_mode || 'none',
+            p.target_time || null,
+            p.visit_status || 'unvisited',
+            p.main_photo_url || null,
+            p.why_visit || null,
+            p.recommended_duration || null,
+            p.cost_est !== undefined ? Number(p.cost_est) : 0,
+            p.cost_category || 'activities',
+            p.is_mandatory !== undefined ? (p.is_mandatory ? 1 : 0) : 1,
+            p.is_enabled !== undefined ? (p.is_enabled ? 1 : 0) : 1,
+            p.sort_order || idx + 1,
+            p.created_at || now,
+            now
+          );
+        });
+      }
+
+      // 4. Restore accommodations if supplied
+      if (Array.isArray(accommodations) && accommodations.length > 0) {
+        db.prepare('DELETE FROM accommodations WHERE trip_id = ?').run(tripId);
+        const insertAcc = db.prepare(`
+          INSERT INTO accommodations (
+            id, trip_id, day_id, hotel_name, location, lat, lng, booking_url,
+            price_total, price_single, price_currency, rooms_count, room_type,
+            cancellation_policy, booking_status, notes, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const a of accommodations) {
+          insertAcc.run(
+            a.id || `acc_${crypto.randomUUID()}`,
+            tripId,
+            a.day_id || null,
+            a.hotel_name || 'Ubytování',
+            a.location || null,
+            a.lat || null,
+            a.lng || null,
+            a.booking_url || null,
+            a.price_total || 0,
+            a.price_single || 0,
+            a.price_currency || 'USD',
+            a.rooms_count || 2,
+            a.room_type || null,
+            a.cancellation_policy || null,
+            a.booking_status || 'confirmed',
+            a.notes || null,
+            now,
+            now
+          );
+        }
+      }
+
+      // 5. Restore bookings if supplied
+      if (Array.isArray(bookings) && bookings.length > 0) {
+        db.prepare('DELETE FROM bookings WHERE trip_id = ?').run(tripId);
+        const insertBkg = db.prepare(`
+          INSERT INTO bookings (
+            id, trip_id, type, title, provider, confirmation_number,
+            booking_date, price, currency, status, document_url, notes,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const b of bookings) {
+          insertBkg.run(
+            b.id || `bkg_${crypto.randomUUID()}`,
+            tripId,
+            b.type || 'other',
+            b.title || 'Rezervace',
+            b.provider || null,
+            b.confirmation_number || null,
+            b.booking_date || null,
+            b.price || 0,
+            b.currency || 'USD',
+            b.status || 'confirmed',
+            b.document_url || null,
+            b.notes || null,
+            now,
+            now
+          );
+        }
+      }
+
+      db.exec('COMMIT');
+
+      // Update server JSON backup
+      saveTripsBackupToJson();
+
+      return { success: true, id: tripId };
+    } catch (err: any) {
+      db.exec('ROLLBACK');
+      console.error('Chyba restore-full:', err);
+      return reply.status(500).send({ error: 'Chyba při obnově cesty', details: err.message });
+    }
+  });
 
   // List all user's trips (including seeded demo/Sri Lanka trip)
   fastify.get('/', async (request) => {
@@ -177,7 +374,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
       now
     );
 
-    return {
+    const createdTrip = {
       id,
       title,
       motto,
@@ -195,6 +392,8 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
       createdAt: now,
       updatedAt: now,
     };
+    saveTripsBackupToJson();
+    return createdTrip;
   });
 
   // AI Trip Proposal generator (Preview before creating)
@@ -412,6 +611,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
         `).run(subRouteId, tripId, JSON.stringify(parsed.coordinates));
       }
 
+      saveTripsBackupToJson();
       return { id: tripId, title: parsed.title, daysCount: parsed.days.length, poisCount: parsed.pois.length };
     } catch (err: any) {
       return reply.status(400).send({ error: 'Chyba při importu trasy.', details: err.message });
@@ -624,6 +824,8 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
         throw transErr;
       }
 
+      saveTripsBackupToJson();
+
       return {
         success: true,
         id,
@@ -754,6 +956,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
 
     values.push(id);
     db.prepare(`UPDATE trips SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+    saveTripsBackupToJson();
 
     return { id, success: true, updatedAt: now };
   });
@@ -770,6 +973,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
 
     const now = new Date().toISOString();
     db.prepare('UPDATE trips SET is_deleted = 1, updated_at = ? WHERE id = ?').run(now, id);
+    saveTripsBackupToJson();
     return { success: true, id };
   });
 
@@ -783,6 +987,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
       SET is_deleted = 1, updated_at = ?
       WHERE owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026' OR id = 'trip_srilanka_001'
     `).run(now, userId);
+    saveTripsBackupToJson();
 
     return { success: true, message: 'Všechny cesty byly úspěšně vymazány.' };
   });

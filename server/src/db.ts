@@ -294,6 +294,9 @@ export function initDatabase() {
 
   // Seed demo user and trips
   seedDemoData();
+
+  // Restore any persistent trips from JSON backup
+  restoreTripsFromBackupJson();
 }
 
 function runMigrations() {
@@ -1619,3 +1622,144 @@ export function seedSriLanka2026Trip(userId: string) {
 
   console.log('✅ Cesta Srí Lanka 2026/2027 byla úspěšně založena a naplněna daty.');
 }
+
+const BACKUP_FILE = path.join(DB_DIR, 'trips-backup.json');
+
+export function saveTripsBackupToJson() {
+  try {
+    const trips = db.prepare('SELECT * FROM trips WHERE is_deleted = 0').all();
+    const pois = db.prepare('SELECT * FROM pois WHERE is_deleted = 0').all();
+    const days = db.prepare('SELECT * FROM days').all();
+    const accommodations = db.prepare('SELECT * FROM accommodations').all();
+    const bookings = db.prepare('SELECT * FROM bookings').all();
+
+    const data = { trips, pois, days, accommodations, bookings, savedAt: new Date().toISOString() };
+    fs.writeFileSync(BACKUP_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Nelze zapsat záložní kopii tras do JSONu:', err);
+  }
+}
+
+export function restoreTripsFromBackupJson() {
+  try {
+    if (!fs.existsSync(BACKUP_FILE)) return;
+    const raw = fs.readFileSync(BACKUP_FILE, 'utf-8');
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.trips)) return;
+
+    for (const t of data.trips) {
+      const existing = db.prepare('SELECT id FROM trips WHERE id = ?').get(t.id);
+      if (!existing) {
+        db.prepare(`
+          INSERT OR IGNORE INTO trips (
+            id, owner_id, title, motto, status, country_region, travelers_count,
+            primary_transport, room_scenario, budget_currency, notes,
+            start_date, end_date, bounding_box, route_url, version, is_deleted, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+        `).run(
+          t.id,
+          t.owner_id || 'usr_demo_001',
+          t.title,
+          t.motto || null,
+          t.status || 'planning',
+          t.country_region || null,
+          t.travelers_count || 3,
+          t.primary_transport || 'Soukromé auto s řidičem',
+          t.room_scenario || '2+1',
+          t.budget_currency || 'USD',
+          t.notes || null,
+          t.start_date || null,
+          t.end_date || null,
+          t.bounding_box || null,
+          t.route_url || null,
+          t.version || 1,
+          t.created_at || new Date().toISOString(),
+          t.updated_at || new Date().toISOString()
+        );
+      }
+    }
+
+    if (Array.isArray(data.days)) {
+      for (const d of data.days) {
+        db.prepare(`
+          INSERT OR IGNORE INTO days (
+            id, trip_id, day_number, specific_date, title, notes,
+            start_location, overnight_location, transit_time_est, distance_km, transport_mode,
+            has_detail, version, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
+        `).run(
+          d.id, d.trip_id, d.day_number, d.specific_date || null, d.title, d.notes || null,
+          d.start_location || null, d.overnight_location || null, d.transit_time_est || null,
+          d.distance_km || 0, d.transport_mode || 'Auto', d.created_at || new Date().toISOString(),
+          d.updated_at || new Date().toISOString()
+        );
+      }
+    }
+
+    if (Array.isArray(data.pois)) {
+      for (const p of data.pois) {
+        db.prepare(`
+          INSERT OR IGNORE INTO pois (
+            id, trip_id, day_id, category_id, name, is_top, lat, lng,
+            description, private_notes, opening_hours, source_url,
+            time_mode, target_time, visit_status, main_photo_url,
+            why_visit, recommended_duration, cost_est, cost_category,
+            is_mandatory, is_enabled, sort_order, version, is_deleted, created_at, updated_at
+          ) VALUES (
+            ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?,
+            ?, ?, ?, ?,
+            ?, ?, ?, ?,
+            ?, ?, ?, 1, 0, ?, ?
+          )
+        `).run(
+          p.id, p.trip_id, p.day_id || null, p.category_id || 'other', p.name || 'Bod zájmu',
+          p.is_top ? 1 : 0, p.lat !== undefined ? Number(p.lat) : 0, p.lng !== undefined ? Number(p.lng) : 0,
+          p.description || null, p.private_notes || null, p.opening_hours || null, p.source_url || null,
+          p.time_mode || 'none', p.target_time || null, p.visit_status || 'unvisited', p.main_photo_url || null,
+          p.why_visit || null, p.recommended_duration || null, p.cost_est !== undefined ? Number(p.cost_est) : 0,
+          p.cost_category || 'activities', p.is_mandatory !== undefined ? (p.is_mandatory ? 1 : 0) : 1,
+          p.is_enabled !== undefined ? (p.is_enabled ? 1 : 0) : 1, p.sort_order || 1,
+          p.created_at || new Date().toISOString(), p.updated_at || new Date().toISOString()
+        );
+      }
+    }
+
+    if (Array.isArray(data.accommodations)) {
+      for (const a of data.accommodations) {
+        db.prepare(`
+          INSERT OR IGNORE INTO accommodations (
+            id, trip_id, day_id, hotel_name, location, lat, lng, booking_url,
+            price_total, price_single, price_currency, rooms_count, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          a.id, a.trip_id, a.day_id || null, a.hotel_name, a.location || null,
+          a.lat || null, a.lng || null, a.booking_url || null,
+          a.price_total || 0, a.price_single || 0, a.price_currency || 'USD',
+          a.rooms_count || 2, a.created_at || new Date().toISOString(), a.updated_at || new Date().toISOString()
+        );
+      }
+    }
+
+    if (Array.isArray(data.bookings)) {
+      for (const b of data.bookings) {
+        db.prepare(`
+          INSERT OR IGNORE INTO bookings (
+            id, trip_id, type, title, provider, confirmation_number,
+            booking_date, price, currency, status, document_url, notes,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          b.id, b.trip_id, b.type || 'other', b.title, b.provider || null,
+          b.confirmation_number || null, b.booking_date || null,
+          b.price || 0, b.currency || 'USD', b.status || 'confirmed',
+          b.document_url || null, b.notes || null, b.created_at || new Date().toISOString(),
+          b.updated_at || new Date().toISOString()
+        );
+      }
+    }
+  } catch (err) {
+    console.warn('Nelze obnovit trasy ze záložního JSONu:', err);
+  }
+}
+

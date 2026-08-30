@@ -83,16 +83,42 @@ export const tripsApi = {
       const serverTrips = await request<Trip[]>('/trips');
       const serverTripIds = new Set(serverTrips.map((t) => t.id));
 
-      // Server is authority: sync local cache with server list
-      await offlineDb.cachedTrips.clear();
+      // Check if user has trips in local IndexedDB that are missing on the server (e.g. after Render restart/deploy)
+      const localCachedTrips = await offlineDb.cachedTrips.toArray();
+      const missingOnServer = localCachedTrips.filter(
+        (lt) => !serverTripIds.has(lt.id) && !lt.is_deleted
+      );
+
+      for (const localTrip of missingOnServer) {
+        try {
+          const localPois = await offlineDb.cachedPois.where('trip_id').equals(localTrip.id).toArray();
+          await request('/trips/restore-full', {
+            method: 'POST',
+            body: JSON.stringify({
+              trip: localTrip,
+              pois: localPois,
+              days: (localTrip as any).days || [],
+              accommodations: (localTrip as any).accommodations || [],
+              bookings: (localTrip as any).bookings || [],
+            }),
+          });
+          serverTrips.push(localTrip);
+          serverTripIds.add(localTrip.id);
+        } catch (restoreErr) {
+          console.warn('Automatická obnova trasy na server selhala:', restoreErr);
+          serverTrips.push(localTrip);
+        }
+      }
+
+      // Keep local IndexedDB in sync without destructive wipe
       if (serverTrips.length > 0) {
         await offlineDb.cachedTrips.bulkPut(serverTrips);
       }
       return serverTrips;
     } catch (err) {
-      // Fallback to offline store
+      // Offline fallback: return all non-deleted cached trips
       const cached = await offlineDb.cachedTrips.toArray();
-      if (cached.length > 0) return cached;
+      if (cached.length > 0) return cached.filter((t) => !t.is_deleted);
       throw err;
     }
   },
@@ -111,10 +137,12 @@ export const tripsApi = {
         const cachedPois = await offlineDb.cachedPois.where('trip_id').equals(id).toArray();
         return {
           ...cachedTrip,
-          stages: [],
-          days: [],
-          subRoutes: [],
-          pois: cachedPois,
+          stages: (cachedTrip as any).stages || [],
+          days: (cachedTrip as any).days || [],
+          subRoutes: (cachedTrip as any).subRoutes || [],
+          accommodations: (cachedTrip as any).accommodations || [],
+          bookings: (cachedTrip as any).bookings || [],
+          pois: cachedPois.length > 0 ? cachedPois : (cachedTrip as any).pois || [],
         } as FullTrip;
       }
       throw err;
