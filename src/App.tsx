@@ -346,7 +346,7 @@ export function App() {
     try {
       setLoading(true);
       await tripsApi.delete(targetId);
-      const remainingTrips = await tripsApi.getAll();
+      const remainingTrips = (await tripsApi.getAll()).filter((t) => t.id !== targetId);
       setTrips(remainingTrips);
       if (remainingTrips.length > 0) {
         const next = await tripsApi.get(remainingTrips[0].id);
@@ -354,6 +354,8 @@ export function App() {
       } else {
         setActiveTrip(null);
       }
+      setSyncToast(`Cesta „${tripTitle}“ byla úspěšně smazána.`);
+      setTimeout(() => setSyncToast(null), 3000);
     } catch (err: any) {
       alert(err.message || 'Nepodařilo se smazat cestu.');
     } finally {

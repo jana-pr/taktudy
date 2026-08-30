@@ -330,20 +330,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Actions & Status */}
         <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-          {/* Global Tips button */}
-          {onOpenTips && (
-            <button
-              type="button"
-              onClick={onOpenTips}
-              title="Zásobárna tipů ze světa"
-              className="flex items-center gap-1 text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-1 rounded-full border border-amber-300/80 dark:border-amber-700/80 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all active:scale-95 shrink-0 shadow-2xs"
-              aria-label="Tipy ze světa"
-            >
-              <Lightbulb className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-500 fill-amber-500" />
-              <span>Tipy</span>
-            </button>
-          )}
-
           {/* Sync status & Manual sync button */}
           <button
             onClick={onTriggerSync}

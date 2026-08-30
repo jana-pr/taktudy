@@ -110,7 +110,7 @@ export const tipsRoutes: FastifyPluginAsync = async (fastify) => {
       is_used,
     } = request.body as any;
 
-    const existing = db.prepare('SELECT * FROM tips WHERE id = ? AND (user_id = ? OR user_id = "usr_demo_001")').get(id, userId);
+    const existing = db.prepare(`SELECT * FROM tips WHERE id = ? AND (user_id = ? OR user_id = 'usr_demo_001')`).get(id, userId);
     if (!existing) {
       return reply.status(404).send({ error: 'Tip nebyl nalezen.' });
     }
@@ -147,7 +147,7 @@ export const tipsRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = (request.user as any).id;
     const { id } = request.params as { id: string };
 
-    const existing = db.prepare('SELECT id FROM tips WHERE id = ? AND (user_id = ? OR user_id = "usr_demo_001")').get(id, userId);
+    const existing = db.prepare(`SELECT id FROM tips WHERE id = ? AND (user_id = ? OR user_id = 'usr_demo_001')`).get(id, userId);
     if (!existing) {
       return reply.status(404).send({ error: 'Tip nebyl nalezen.' });
     }
@@ -166,7 +166,7 @@ export const tipsRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ error: 'Vyberte prosím cestu a den pro zařazení tipu.' });
     }
 
-    const tip = db.prepare('SELECT * FROM tips WHERE id = ? AND (user_id = ? OR user_id = "usr_demo_001")').get(id, userId) as any;
+    const tip = db.prepare(`SELECT * FROM tips WHERE id = ? AND (user_id = ? OR user_id = 'usr_demo_001')`).get(id, userId) as any;
     if (!tip) {
       return reply.status(404).send({ error: 'Tip nebyl nalezen.' });
     }

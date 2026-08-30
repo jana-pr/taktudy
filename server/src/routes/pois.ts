@@ -88,7 +88,7 @@ export const poiRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = (request.user as any).id;
     const { tripId } = request.params as { tripId: string };
 
-    const trip = db.prepare('SELECT id FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = "usr_demo_001" OR id = "trip_srilanka_2026")').get(tripId, userId);
+    const trip = db.prepare(`SELECT id FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026')`).get(tripId, userId);
     if (!trip) {
       return reply.status(404).send({ error: 'Cesta nebyla nalezena.' });
     }
@@ -162,7 +162,7 @@ export const poiRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = (request.user as any).id;
     const { tripId, id } = request.params as { tripId: string; id: string };
 
-    const trip = db.prepare('SELECT id FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = "usr_demo_001" OR id = "trip_srilanka_2026")').get(tripId, userId);
+    const trip = db.prepare(`SELECT id FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026')`).get(tripId, userId);
     if (!trip) {
       return reply.status(404).send({ error: 'Cesta nebyla nalezena.' });
     }
@@ -330,7 +330,7 @@ export const poiRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ error: 'orderedIds musí být pole ID.' });
     }
 
-    const trip = db.prepare('SELECT id FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = "usr_demo_001" OR id = "trip_srilanka_2026")').get(tripId, userId);
+    const trip = db.prepare(`SELECT id FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026')`).get(tripId, userId);
     if (!trip) {
       return reply.status(404).send({ error: 'Cesta nebyla nalezena.' });
     }

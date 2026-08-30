@@ -432,7 +432,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const trip = db
-      .prepare('SELECT * FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = "usr_demo_001" OR id = "trip_srilanka_2026")')
+      .prepare(`SELECT * FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026')`)
       .get(id, userId) as any;
 
     if (!trip) {
@@ -642,7 +642,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string };
 
     const trip = db
-      .prepare('SELECT * FROM trips WHERE id = ? AND (owner_id = ? OR id = "trip_srilanka_2026")')
+      .prepare(`SELECT * FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026')`)
       .get(id, userId) as any;
 
     if (!trip) {
@@ -664,7 +664,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ error: 'Neplatný scénář pokojů. Povolené hodnoty: 2+1 nebo triple.' });
     }
 
-    db.prepare('UPDATE trips SET room_scenario = ?, updated_at = ? WHERE id = ? AND (owner_id = ? OR id = "trip_srilanka_2026")').run(
+    db.prepare(`UPDATE trips SET room_scenario = ?, updated_at = ? WHERE id = ? AND (owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026')`).run(
       room_scenario,
       new Date().toISOString(),
       id,
@@ -728,7 +728,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ error: 'Neplatná data pro aktualizaci.', details: parse.error.issues });
     }
 
-    const existing = db.prepare('SELECT * FROM trips WHERE id = ? AND (owner_id = ? OR id = "trip_srilanka_2026")').get(id, userId);
+    const existing = db.prepare(`SELECT * FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026')`).get(id, userId);
     if (!existing) {
       return reply.status(404).send({ error: 'Cesta nebyla nalezena.' });
     }
@@ -763,7 +763,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = (request.user as any).id;
     const { id } = request.params as { id: string };
 
-    const trip = db.prepare('SELECT id FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = "usr_demo_001" OR id = "trip_srilanka_2026")').get(id, userId);
+    const trip = db.prepare(`SELECT id FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026')`).get(id, userId);
     if (!trip) {
       return reply.status(404).send({ error: 'Cesta nebyla nalezena.' });
     }
@@ -783,7 +783,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ error: 'Název etapy je povinný.' });
     }
 
-    const trip = db.prepare('SELECT id FROM trips WHERE id = ? AND (owner_id = ? OR id = "trip_srilanka_2026")').get(id, userId);
+    const trip = db.prepare(`SELECT id FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026')`).get(id, userId);
     if (!trip) {
       return reply.status(404).send({ error: 'Cesta nebyla nalezena.' });
     }
@@ -808,7 +808,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = (request.user as any).id;
     const { id, stageId } = request.params as { id: string; stageId: string };
 
-    const trip = db.prepare('SELECT id FROM trips WHERE id = ? AND (owner_id = ? OR id = "trip_srilanka_2026")').get(id, userId);
+    const trip = db.prepare(`SELECT id FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026')`).get(id, userId);
     if (!trip) {
       return reply.status(404).send({ error: 'Cesta nebyla nalezena.' });
     }

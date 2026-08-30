@@ -29,6 +29,7 @@ const fastify = Fastify({
   logger: {
     level: process.env.LOG_LEVEL || 'info',
   },
+  bodyLimit: 15 * 1024 * 1024, // 15MB limit for photo uploads
 });
 
 async function main() {

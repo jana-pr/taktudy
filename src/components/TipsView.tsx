@@ -118,14 +118,22 @@ export const TipsView: React.FC<TipsViewProps> = ({
 
     setSubmitting(true);
     try {
+      let cleanSourceUrl = sourceUrl.trim();
+      if (cleanSourceUrl && !cleanSourceUrl.startsWith('http://') && !cleanSourceUrl.startsWith('https://')) {
+        cleanSourceUrl = 'https://' + cleanSourceUrl;
+      }
+
+      const parsedLat = lat && !isNaN(parseFloat(lat)) ? parseFloat(lat) : undefined;
+      const parsedLng = lng && !isNaN(parseFloat(lng)) ? parseFloat(lng) : undefined;
+
       const payload: any = {
         title: title.trim(),
         location_name: locationName.trim() || undefined,
         category_id: categoryId,
-        lat: lat ? parseFloat(lat) : undefined,
-        lng: lng ? parseFloat(lng) : undefined,
+        lat: parsedLat,
+        lng: parsedLng,
         notes: notes.trim() || undefined,
-        source_url: sourceUrl.trim() || undefined,
+        source_url: cleanSourceUrl || undefined,
         photo_url: photoUrl.trim() || undefined,
       };
 
@@ -306,10 +314,11 @@ export const TipsView: React.FC<TipsViewProps> = ({
                 Web / Booking URL odkaz
               </label>
               <input
-                type="url"
+                type="text"
+                inputMode="url"
                 value={sourceUrl}
                 onChange={(e) => setSourceUrl(e.target.value)}
-                placeholder="https://www.booking.com/... nebo https://..."
+                placeholder="https://www.booking.com/... nebo booking.com..."
                 className="w-full p-2.5 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-xs text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
