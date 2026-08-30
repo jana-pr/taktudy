@@ -61,7 +61,7 @@ export function App() {
   const [activeTrip, setActiveTrip] = useState<FullTrip | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [tips, setTips] = useState<Tip[]>([]);
-  const [showTipsOnMap, setShowTipsOnMap] = useState(false);
+  const [showTipsOnMap, setShowTipsOnMap] = useState(true);
   const [loading, setLoading] = useState(true);
 
   // Navigation State - defaults to 'overview' for rich trip experience
@@ -504,6 +504,7 @@ export function App() {
           onOpenOfflineChecklist={() => setIsOfflineModalOpen(true)}
           onOpenQrModal={() => setIsQrModalOpen(true)}
           onOpenTips={() => setActiveTab('tips')}
+          activeTab={activeTab}
           isDarkMode={isDarkMode}
           onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
           isOnline={isOnline}

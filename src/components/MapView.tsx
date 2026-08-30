@@ -303,16 +303,38 @@ export const MapView: React.FC<MapViewProps> = ({
         const tipEl = document.createElement('div');
         tipEl.className = 'custom-tip-marker cursor-pointer transform -translate-x-1/2 -translate-y-1/2 transition-transform hover:scale-125';
         tipEl.innerHTML = `
-          <div class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-lg border-2 border-white ring-2 ring-amber-300">
-            💡
+          <div class="relative flex items-center justify-center">
+            <div class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-lg border-2 border-white ring-2 ring-amber-300">
+              💡
+            </div>
+            <div class="absolute -top-1.5 -right-1 bg-amber-700 text-white text-[8px] font-black px-1 rounded-full shadow border border-white">
+              TIP
+            </div>
           </div>
         `;
 
-        const popup = new maplibregl.Popup({ offset: 15 }).setHTML(`
-          <div class="p-2 text-xs">
-            <div class="font-bold text-amber-800">💡 Tip: ${tip.title}</div>
-            ${tip.location_name ? `<div class="text-[11px] text-gray-500">${tip.location_name}</div>` : ''}
-            ${tip.notes ? `<div class="text-[11px] text-gray-700 mt-1">${tip.notes}</div>` : ''}
+        const photoHtml = tip.photo_url
+          ? `<div style="width:100%; height:80px; overflow:hidden; border-radius:6px; margin-bottom:6px;">
+               <img src="${tip.photo_url}" alt="${tip.title}" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'" />
+             </div>`
+          : '';
+
+        const urlHtml = tip.source_url
+          ? `<a href="${tip.source_url}" target="_blank" rel="noopener noreferrer" style="display:inline-block; margin-top:6px; padding:4px 8px; background:#fef3c7; color:#92400e; font-weight:bold; font-size:10px; border-radius:6px; text-decoration:none;">Otevřít odkaz ↗</a>`
+          : '';
+
+        const popup = new maplibregl.Popup({ offset: 16 }).setHTML(`
+          <div style="font-family:inherit; font-size:12px; padding:2px; max-width:200px; line-height:1.4;">
+            ${photoHtml}
+            <div style="color:#d97706; font-size:10px; font-weight:bold; text-transform:uppercase;">
+              💡 Místo z tipů • ${tip.category_label || tip.category_id || 'Tip'}
+            </div>
+            <div style="font-weight:bold; font-size:13px; color:#111827; margin-top:2px;">
+              ${tip.title}
+            </div>
+            ${tip.location_name ? `<div style="color:#6b7280; font-size:11px; margin-top:2px;">📍 ${tip.location_name}</div>` : ''}
+            ${tip.notes ? `<div style="color:#374151; font-size:11px; margin-top:3px;">${tip.notes}</div>` : ''}
+            ${urlHtml}
           </div>
         `);
 
@@ -455,8 +477,8 @@ export const MapView: React.FC<MapViewProps> = ({
           <span>🏨 Ubytování ({filteredAccommodations.length})</span>
         </button>
 
-        {/* Tips Filter Toggle - independent, always visible across world */}
-        {onToggleShowTips && (
+        {/* Tips Filter Toggle - "z tipů" */}
+        {onToggleShowTips && tips.length > 0 && (
           <button
             onClick={onToggleShowTips}
             className={`flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full shadow-md transition-all flex-shrink-0 active:scale-95 ${
@@ -464,10 +486,11 @@ export const MapView: React.FC<MapViewProps> = ({
                 ? 'bg-amber-500 text-white ring-2 ring-white dark:ring-stone-800'
                 : 'bg-white/95 dark:bg-outdoor-dark-card/95 text-outdoor-text dark:text-stone-200 border border-stone-200 dark:border-stone-700 hover:bg-stone-50'
             }`}
-            aria-label="Zobrazit tipy ze zásobárny na mapě"
+            aria-label="Filtr zobrazování bodů z tipů na mapě"
+            title={showTips ? 'Skrýt místa z tipů na mapě' : 'Zobrazit místa z tipů na mapě'}
           >
             <Lightbulb className={`w-3.5 h-3.5 ${showTips ? 'fill-white text-white' : 'text-amber-500 fill-amber-500'}`} />
-            <span>💡 Tipy ({tips.length})</span>
+            <span>z tipů ({tips.filter((t) => t.lat && t.lng).length || tips.length})</span>
           </button>
         )}
 

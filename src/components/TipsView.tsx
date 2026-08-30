@@ -165,6 +165,17 @@ export const TipsView: React.FC<TipsViewProps> = ({
     }
   };
 
+  const handleClearAllTips = async () => {
+    if (!confirm('Opravdu chcete zcela vymazat celou historii tipů? Tato akce je nevratná.')) return;
+    try {
+      await tipsApi.clearAll();
+      setTips([]);
+      showToast('Historie tipů byla zcela vymazána.');
+    } catch (err: any) {
+      alert(err.message || 'Nepodařilo se vymazat tipy.');
+    }
+  };
+
   const handlePromoteToPoi = async (tipId: string) => {
     if (!activeTrip || !selectedDayId) return;
 
@@ -228,17 +239,31 @@ export const TipsView: React.FC<TipsViewProps> = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            if (isAddOpen) resetForm();
-            else setIsAddOpen(true);
-          }}
-          className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-2 self-start sm:self-auto shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{isAddOpen ? 'Zavřít formulář' : '+ Přidat nový tip'}</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0 flex-wrap">
+          {tips.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClearAllTips}
+              className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-semibold rounded-2xl text-xs border border-rose-200 dark:border-rose-800 transition-all flex items-center gap-1.5"
+              title="Zcela vymazat celou historii tipů"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+              <span>Vymazat historii</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              if (isAddOpen) resetForm();
+              else setIsAddOpen(true);
+            }}
+            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-2 shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{isAddOpen ? 'Zavřít formulář' : '+ Přidat nový tip'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Add / Edit Tip Form (Expandable) */}

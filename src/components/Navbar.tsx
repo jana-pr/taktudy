@@ -37,6 +37,7 @@ interface NavbarProps {
   onOpenOfflineChecklist: () => void;
   onOpenQrModal?: () => void;
   onOpenTips?: () => void;
+  activeTab?: string;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   isOnline: boolean;
@@ -61,6 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenOfflineChecklist,
   onOpenQrModal,
   onOpenTips,
+  activeTab,
   isDarkMode,
   onToggleDarkMode,
   pendingSyncCount,
@@ -284,24 +286,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                       </div>
                     </button>
 
-                    {/* Zásobárna tipů ze světa */}
-                    {onOpenTips && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsManageOpen(false);
-                          onOpenTips();
-                        }}
-                        className="w-full px-3.5 py-2.5 text-left hover:bg-amber-50 dark:hover:bg-amber-950/40 text-stone-700 dark:text-stone-200 font-semibold flex items-center gap-2.5 transition-colors"
-                      >
-                        <Lightbulb className="w-4 h-4 text-amber-500 shrink-0" />
-                        <div>
-                          <div className="font-bold">Zásobárna tipů ze světa</div>
-                          <div className="text-[10px] text-stone-400 font-normal">Inspirace a wishlist napříč světem</div>
-                        </div>
-                      </button>
-                    )}
-
                     {/* Divider */}
                     <div className="my-1 border-t border-stone-100 dark:border-stone-800" />
 
@@ -358,7 +342,25 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Actions & Status */}
-        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {/* Správa Tipů – přímo na horní liště obrazovky */}
+          {onOpenTips && (
+            <button
+              type="button"
+              onClick={onOpenTips}
+              className={`flex items-center gap-1 text-xs font-bold px-2.5 py-1 sm:py-1.5 rounded-lg border transition-all active:scale-95 shrink-0 ${
+                activeTab === 'tips'
+                  ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
+                  : 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700/80 shadow-xs'
+              }`}
+              title="Správa tipů ze světa (zadat nový, upravit, smazat)"
+              aria-label="Správa tipů"
+            >
+              <Lightbulb className={`w-3.5 h-3.5 ${activeTab === 'tips' ? 'text-white' : 'text-amber-500 fill-amber-500'}`} />
+              <span>Tipy</span>
+            </button>
+          )}
+
           {/* Sync status & Manual sync button */}
           <button
             onClick={onTriggerSync}

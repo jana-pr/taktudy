@@ -156,6 +156,13 @@ export const tipsRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true, id };
   });
 
+  // POST /api/tips/clear-all - completely clear all tips
+  fastify.post('/clear-all', async (request) => {
+    const userId = (request.user as any).id;
+    db.prepare(`DELETE FROM tips WHERE user_id = ? OR user_id = 'usr_demo_001'`).run(userId);
+    return { success: true, message: 'Všechny tipy byly úspěšně vymazány.' };
+  });
+
   // POST /api/tips/:id/promote-to-poi - Promote a tip into a trip itinerary POI
   fastify.post('/:id/promote-to-poi', async (request, reply) => {
     const userId = (request.user as any).id;

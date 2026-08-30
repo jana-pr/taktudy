@@ -255,6 +255,10 @@ export const tipsApi = {
     return request(`/tips/${id}`, { method: 'DELETE' });
   },
 
+  clearAll: async (): Promise<any> => {
+    return request('/tips/clear-all', { method: 'POST' });
+  },
+
   promoteToPoi: async (id: string, payload: { tripId: string; dayId: string }): Promise<any> => {
     return request(`/tips/${id}/promote-to-poi`, {
       method: 'POST',

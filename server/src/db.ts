@@ -334,9 +334,10 @@ function runMigrations() {
     } catch {}
   }
 
-  // User requested clean slate: mark all previous trips as deleted
+  // User requested clean slate: mark all previous trips as deleted and completely wipe tips history
   try {
     db.exec(`UPDATE trips SET is_deleted = 1;`);
+    db.exec(`DELETE FROM tips;`);
   } catch {}
 
   // Backfill accommodation GPS coordinates based on known location keywords
@@ -481,22 +482,6 @@ function seedDemoData() {
     }
   } catch (e) {
     console.warn('Bookings seed skipped:', e);
-  }
-
-  // Seed demo tips if empty (global tips with trip_id = null so no foreign key constraint)
-  try {
-    const tipsCount = (db.prepare('SELECT COUNT(*) as c FROM tips WHERE user_id = ?').get(user.id) as any)?.c || 0;
-    if (tipsCount === 0) {
-      const insertTip = db.prepare(`
-        INSERT INTO tips (id, user_id, trip_id, title, category_id, location_name, lat, lng, notes, is_used, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
-      `);
-      insertTip.run('tip_1', user.id, null, 'Coconut Tree Hill', 'view', 'Mirissa', 5.9450, 80.4610, 'Ikonický kopec s palmami na útesu nad oceánem – nejlepší při západu slunce.', now, now);
-      insertTip.run('tip_2', user.id, null, 'Cafe Chill', 'food', 'Ella', 6.8745, 81.0460, 'Vyhlášené bistro a bar s výborným curry, burgerem a skvělou večerní atmosférou.', now, now);
-      insertTip.run('tip_3', user.id, null, 'Ambuluwawa Tower', 'view', 'Gampola (u Kandy)', 7.1697, 80.5489, 'Spirálovitá věž biodiverzity na skalním vrcholu s 360° panoramatem.', now, now);
-    }
-  } catch (e) {
-    console.warn('Tips seed skipped:', e);
   }
 }
 
