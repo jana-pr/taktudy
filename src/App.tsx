@@ -29,6 +29,9 @@ import { EditRouteFromChatGptModal } from './components/EditRouteFromChatGptModa
 import { PoiManagerModal } from './components/PoiManagerModal';
 import { SharedTripView } from './components/SharedTripView';
 import { AuthModal } from './components/AuthModal';
+import { RemindersModal } from './components/RemindersModal';
+import { AllTripsModal } from './components/AllTripsModal';
+import { notificationService } from './services/notificationService';
 import {
   LayoutDashboard,
   Calendar,
@@ -88,7 +91,46 @@ export function App() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isEditChatGptOpen, setIsEditChatGptOpen] = useState(false);
   const [isPoiManagerOpen, setIsPoiManagerOpen] = useState(false);
+  const [isRemindersModalOpen, setIsRemindersModalOpen] = useState(false);
+  const [isAllTripsModalOpen, setIsAllTripsModalOpen] = useState(false);
   const [mapClickCoords, setMapClickCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  const handleUpdateTripStatus = async (tripId: string, status: any) => {
+    try {
+      await tripsApi.update(tripId, { status });
+      // Refresh local trips list
+      setTrips((prev) =>
+        prev.map((t) => (t.id === tripId ? { ...t, status } : t))
+      );
+      if (activeTrip && activeTrip.id === tripId) {
+        setActiveTrip((prev) => (prev ? { ...prev, status } : null));
+      }
+    } catch (err) {
+      console.error('Chyba při aktualizaci stavu cesty:', err);
+    }
+  };
+
+  // Background reminder notification checker (checks every 30 seconds)
+  useEffect(() => {
+    if (!activeTrip || !activeTrip.reminders || activeTrip.reminders.length === 0) return;
+
+    // Run check immediately
+    notificationService.checkReminders(activeTrip.reminders, (r) => {
+      setSyncToast(`⏰ Připomínka: ${r.title}`);
+      setTimeout(() => setSyncToast(null), 7000);
+    });
+
+    const interval = setInterval(() => {
+      if (activeTrip && activeTrip.reminders) {
+        notificationService.checkReminders(activeTrip.reminders, (r) => {
+          setSyncToast(`⏰ Připomínka: ${r.title}`);
+          setTimeout(() => setSyncToast(null), 7000);
+        });
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [activeTrip?.reminders]);
 
   // Theme & Offline Status
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -511,6 +553,8 @@ export function App() {
           onOpenQrModal={() => setIsQrModalOpen(true)}
           onOpenTips={() => setActiveTab(activeTab === 'tips' ? 'overview' : 'tips')}
           onOpenPoiManager={() => setIsPoiManagerOpen(true)}
+          onOpenReminders={() => setIsRemindersModalOpen(true)}
+          onOpenAllTrips={() => setIsAllTripsModalOpen(true)}
           activeTab={activeTab}
           isDarkMode={isDarkMode}
           onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
@@ -667,10 +711,8 @@ export function App() {
                   }}
                   onNavigateToPoi={setSelectedPoi}
                   onOpenQuickAdd={() => setIsQuickAddOpen(true)}
-                  onOpenExportForChatGpt={() => setIsExportModalOpen(true)}
-                  onOpenEditFromChatGpt={() => setIsEditChatGptOpen(true)}
-                  onOpenEditTrip={() => setIsEditTripModalOpen(true)}
-                  onDeleteTrip={() => handleDeleteTrip()}
+                  onOpenReminders={() => setIsRemindersModalOpen(true)}
+                  onTripUpdated={refreshActiveTrip}
                 />
               </div>
             )}
@@ -895,6 +937,28 @@ export function App() {
           onTripUpdated={refreshActiveTrip}
         />
       )}
+
+      {activeTrip && (
+        <RemindersModal
+          isOpen={isRemindersModalOpen}
+          onClose={() => setIsRemindersModalOpen(false)}
+          trip={activeTrip}
+          onRemindersUpdated={(updated) => {
+            setActiveTrip((prev) => (prev ? { ...prev, reminders: updated } : null));
+          }}
+        />
+      )}
+
+      {/* Přehled všech cest Modal */}
+      <AllTripsModal
+        isOpen={isAllTripsModalOpen}
+        onClose={() => setIsAllTripsModalOpen(false)}
+        trips={trips}
+        activeTrip={activeTrip}
+        onSelectTrip={handleSelectTrip}
+        onOpenNewTrip={() => setIsNewTripModalOpen(true)}
+        onUpdateTripStatus={handleUpdateTripStatus}
+      />
 
       {/* AI Proposal Modal */}
       <TripProposalModal

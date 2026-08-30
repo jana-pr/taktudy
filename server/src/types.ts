@@ -158,6 +158,19 @@ export interface POI {
   updated_at: string;
 }
 
+export interface Reminder {
+  id: string;
+  trip_id: string;
+  title: string;
+  category: 'restaurant' | 'tickets' | 'transport' | 'activity' | 'general';
+  remind_at: string;
+  notes?: string | null;
+  is_completed: boolean;
+  notification_sent: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface FullTrip extends Trip {
   stages: Stage[];
   days: Day[];
@@ -165,6 +178,8 @@ export interface FullTrip extends Trip {
   pois: POI[];
   accommodations?: Accommodation[];
   transportServices?: TransportService[];
+  bookings?: any[];
+  reminders?: Reminder[];
   isReadOnly?: boolean;
 }
 

@@ -17,6 +17,7 @@ import { categoryRoutes } from './routes/categories.js';
 import { tipsRoutes } from './routes/tips.js';
 import { accommodationsRoutes } from './routes/accommodations.js';
 import { bookingsRoutes } from './routes/bookings.js';
+import { remindersRoutes } from './routes/reminders.js';
 
 // Fastify TypeScript augmentation
 declare module 'fastify' {
@@ -91,6 +92,7 @@ async function main() {
   await fastify.register(tipsRoutes, { prefix: '/api/tips' });
   await fastify.register(accommodationsRoutes, { prefix: '/api/trips' });
   await fastify.register(bookingsRoutes, { prefix: '/api/trips' });
+  await fastify.register(remindersRoutes, { prefix: '/api/trips' });
 
   // Health check
   fastify.get('/api/health', async () => {

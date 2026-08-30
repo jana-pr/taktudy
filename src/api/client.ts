@@ -1,4 +1,4 @@
-import { FullTrip, POI, Trip, Category, SyncMutation, Tip, Accommodation, Booking } from '../types';
+import { FullTrip, POI, Trip, Category, SyncMutation, Tip, Accommodation, Booking, Reminder } from '../types';
 import { offlineDb } from '../offline/db';
 
 const API_BASE = '/api';
@@ -340,6 +340,39 @@ export const bookingsApi = {
 
   delete: async (tripId: string, id: string): Promise<any> => {
     return request(`/trips/${tripId}/bookings/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// Reminders API (Route-specific reminders for restaurant reservations, tickets, transport, etc.)
+export const remindersApi = {
+  getAll: async (tripId: string): Promise<Reminder[]> => {
+    return request<Reminder[]>(`/trips/${tripId}/reminders`);
+  },
+
+  create: async (tripId: string, data: Partial<Reminder>): Promise<Reminder> => {
+    return request<Reminder>(`/trips/${tripId}/reminders`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (tripId: string, id: string, data: Partial<Reminder>): Promise<Reminder> => {
+    return request<Reminder>(`/trips/${tripId}/reminders/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  toggle: async (tripId: string, id: string): Promise<Reminder> => {
+    return request<Reminder>(`/trips/${tripId}/reminders/${id}/toggle`, {
+      method: 'POST',
+    });
+  },
+
+  delete: async (tripId: string, id: string): Promise<any> => {
+    return request(`/trips/${tripId}/reminders/${id}`, {
       method: 'DELETE',
     });
   },

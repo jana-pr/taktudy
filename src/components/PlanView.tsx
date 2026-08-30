@@ -23,6 +23,7 @@ import {
   ChevronUp,
   ChevronDown,
   Bed,
+  CloudSun,
 } from 'lucide-react';
 import { tripsApi } from '../api/client';
 
@@ -206,8 +207,20 @@ export const PlanView: React.FC<PlanViewProps> = ({
                   )}
                 </div>
 
-                {/* Day Navigation Action */}
-                <div className="shrink-0 flex items-center gap-2">
+                {/* Day Navigation & Weather Action */}
+                <div className="shrink-0 flex items-center gap-2 flex-wrap">
+                  {day.overnight_location && (
+                    <a
+                      href={`https://yrno.cz/plus/pocasi/?query=${encodeURIComponent(day.overnight_location)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-2 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+                      title={`Předpověď počasí pro cíl dne (${day.overnight_location}) na yrno.cz`}
+                    >
+                      <CloudSun className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Počasí: {day.overnight_location}</span>
+                    </a>
+                  )}
                   <button
                     onClick={() => openGoogleMapsDay(dayPois, day.start_location, day.overnight_location)}
                     className="px-3.5 py-2 bg-teal-50 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"

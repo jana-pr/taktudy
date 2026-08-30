@@ -209,6 +209,32 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
         }
       }
 
+      // 6. Restore reminders if supplied
+      const reminders = (request.body as any)?.reminders;
+      if (Array.isArray(reminders) && reminders.length > 0) {
+        db.prepare('DELETE FROM reminders WHERE trip_id = ?').run(tripId);
+        const insertRem = db.prepare(`
+          INSERT INTO reminders (
+            id, trip_id, title, category, remind_at, notes,
+            is_completed, notification_sent, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const r of reminders) {
+          insertRem.run(
+            r.id || `rem_${crypto.randomUUID()}`,
+            tripId,
+            r.title,
+            r.category || 'general',
+            r.remind_at,
+            r.notes || null,
+            r.is_completed ? 1 : 0,
+            r.notification_sent ? 1 : 0,
+            r.created_at || now,
+            now
+          );
+        }
+      }
+
       db.exec('COMMIT');
 
       // Update server JSON backup
@@ -232,7 +258,11 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
                (SELECT COUNT(*) FROM days d WHERE d.trip_id = t.id) as day_count
         FROM trips t
         WHERE (t.owner_id = ? OR t.owner_id = 'usr_demo_001') AND t.is_deleted = 0
-        ORDER BY t.created_at DESC
+        ORDER BY 
+          CASE WHEN t.status IN ('completed', 'archived') THEN 1 ELSE 0 END ASC,
+          CASE WHEN t.start_date IS NULL OR t.start_date = '' THEN 1 ELSE 0 END ASC,
+          t.start_date ASC,
+          t.created_at DESC
       `)
       .all(userId);
 
@@ -310,6 +340,15 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
       .prepare('SELECT * FROM bookings WHERE trip_id = ? ORDER BY created_at ASC')
       .all(id);
 
+    const reminders = db
+      .prepare('SELECT * FROM reminders WHERE trip_id = ? ORDER BY remind_at ASC, created_at ASC')
+      .all(id)
+      .map((r: any) => ({
+        ...r,
+        is_completed: Boolean(r.is_completed),
+        notification_sent: Boolean(r.notification_sent),
+      }));
+
     return {
       ...trip,
       is_deleted: Boolean(trip.is_deleted),
@@ -321,6 +360,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
       accommodations,
       transportServices,
       bookings,
+      reminders,
     };
   });
 

@@ -40,6 +40,7 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
   // Form State for Basic Info
   const [title, setTitle] = useState('');
   const [motto, setMotto] = useState('');
+  const [countryRegion, setCountryRegion] = useState('');
   const [status, setStatus] = useState<TripStatus>('planning');
   const [routeUrl, setRouteUrl] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -59,6 +60,7 @@ export const EditTripModal: React.FC<EditTripModalProps> = ({
     if (!trip) return;
     setTitle(trip.title);
     setMotto(trip.motto || '');
+    setCountryRegion(trip.country_region || '');
     setStatus(trip.status);
     setRouteUrl(trip.route_url || '');
     setStartDate(trip.start_date || '');
@@ -179,6 +181,7 @@ Vrať mi POUZE kompletní upravený JSON ve stejné struktuře (včetně všech 
       await onUpdateTrip(trip.id, {
         title: title.trim(),
         motto: motto.trim() || undefined,
+        country_region: countryRegion.trim() || undefined,
         status,
         route_url: routeUrl.trim() || undefined,
         start_date: startDate || undefined,
@@ -281,6 +284,19 @@ Vrať mi POUZE kompletní upravený JSON ve stejné struktuře (včetně všech 
                   value={motto}
                   onChange={(e) => setMotto(e.target.value)}
                   placeholder="Např. Dobrodružství po Srí Lance 2026..."
+                  className="w-full px-3 py-2.5 border border-stone-200 dark:border-stone-700 rounded-xl text-xs dark:bg-stone-800 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-600 dark:text-stone-300 mb-1">
+                  Destinace / Region trasy (pro počasí a mapy)
+                </label>
+                <input
+                  type="text"
+                  value={countryRegion}
+                  onChange={(e) => setCountryRegion(e.target.value)}
+                  placeholder="Např. Jižní Čechy, Srí Lanka, Toskánsko, Krkonoše..."
                   className="w-full px-3 py-2.5 border border-stone-200 dark:border-stone-700 rounded-xl text-xs dark:bg-stone-800 dark:text-white outline-none focus:ring-2 focus:ring-teal-500"
                 />
               </div>

@@ -268,6 +268,23 @@ export function initDatabase() {
     );
   `);
 
+  // Reminders table (route-specific reminders for restaurant reservations, tickets, transport, etc.)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS reminders (
+      id TEXT PRIMARY KEY,
+      trip_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'general',
+      remind_at TEXT NOT NULL,
+      notes TEXT,
+      is_completed INTEGER NOT NULL DEFAULT 0,
+      notification_sent INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE
+    );
+  `);
+
   // Run dynamic migrations safely
   runMigrations();
 
@@ -1632,8 +1649,9 @@ export function saveTripsBackupToJson() {
     const days = db.prepare('SELECT * FROM days').all();
     const accommodations = db.prepare('SELECT * FROM accommodations').all();
     const bookings = db.prepare('SELECT * FROM bookings').all();
+    const reminders = db.prepare('SELECT * FROM reminders').all();
 
-    const data = { trips, pois, days, accommodations, bookings, savedAt: new Date().toISOString() };
+    const data = { trips, pois, days, accommodations, bookings, reminders, savedAt: new Date().toISOString() };
     fs.writeFileSync(BACKUP_FILE, JSON.stringify(data, null, 2), 'utf-8');
   } catch (err) {
     console.warn('Nelze zapsat záložní kopii tras do JSONu:', err);
@@ -1758,8 +1776,21 @@ export function restoreTripsFromBackupJson() {
         );
       }
     }
+
+    if (Array.isArray(data.reminders)) {
+      for (const r of data.reminders) {
+        db.prepare(`
+          INSERT OR IGNORE INTO reminders (
+            id, trip_id, title, category, remind_at, notes, is_completed, notification_sent, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          r.id, r.trip_id, r.title, r.category || 'general', r.remind_at,
+          r.notes || null, r.is_completed ? 1 : 0, r.notification_sent ? 1 : 0,
+          r.created_at || new Date().toISOString(), r.updated_at || new Date().toISOString()
+        );
+      }
+    }
   } catch (err) {
     console.warn('Nelze obnovit trasy ze záložního JSONu:', err);
   }
 }
-

@@ -17,11 +17,12 @@ import {
   CheckCircle2,
   AlertCircle,
   HelpCircle,
-  DollarSign,
   CloudSun,
   FileText,
   Save,
   Check,
+  Bell,
+  ChevronDown,
 } from 'lucide-react';
 
 interface OverviewViewProps {
@@ -29,6 +30,7 @@ interface OverviewViewProps {
   onSelectDay: (dayId: string) => void;
   onNavigateToPoi: (poi: POI) => void;
   onOpenQuickAdd?: () => void;
+  onOpenReminders?: () => void;
   onTripUpdated?: () => Promise<void>;
 }
 
@@ -37,6 +39,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onSelectDay,
   onNavigateToPoi,
   onOpenQuickAdd,
+  onOpenReminders,
   onTripUpdated,
 }) => {
   const days = trip.days || [];
@@ -47,8 +50,42 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const travelersCount = trip.travelers_count || 3;
   const primaryTransport = trip.primary_transport || 'Soukromé auto s řidičem';
 
-  // Weather query region
-  const weatherLocation = trip.country_region || (trip.title ? trip.title.split(' ')[0] : 'Srí Lanka');
+  // Compute distinct destinations and regions along the route
+  const primaryRegion = trip.country_region || (trip.title ? trip.title.split(' ')[0] : 'Česká republika');
+  
+  // Extract all distinct stops along the route
+  const routeStops = React.useMemo(() => {
+    const stops = new Set<string>();
+    if (trip.country_region) stops.add(trip.country_region);
+    days.forEach((d) => {
+      if (d.overnight_location) stops.add(d.overnight_location);
+      if (d.start_location) stops.add(d.start_location);
+    });
+    pois.forEach((p) => {
+      if (p.name && !p.name.startsWith('Bod')) {
+        // If POI has a town-like name, include it
+        const cleanName = p.name.split(',')[0].split('-')[0].trim();
+        if (cleanName.length > 2 && cleanName.length < 30) {
+          stops.add(cleanName);
+        }
+      }
+    });
+    return Array.from(stops).slice(0, 15);
+  }, [trip.country_region, days, pois]);
+
+  const [selectedWeatherLoc, setSelectedWeatherLoc] = useState(primaryRegion);
+
+  useEffect(() => {
+    if (trip.country_region) {
+      setSelectedWeatherLoc(trip.country_region);
+    } else if (days[0]?.overnight_location) {
+      setSelectedWeatherLoc(days[0].overnight_location);
+    } else {
+      setSelectedWeatherLoc(primaryRegion);
+    }
+  }, [trip.country_region, days]);
+
+  const weatherLocation = selectedWeatherLoc || primaryRegion;
 
   // Unified Budget calculation
   const budget = calculateTripBudget(trip);
@@ -150,30 +187,75 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
           </div>
 
-          {/* 3. Odkaz na počasí na trase (yrno.cz) */}
-          <a
-            href={`https://yrno.cz/plus/pocasi/?query=${encodeURIComponent(weatherLocation)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl p-3.5 border border-white/10 transition-all block group"
-            title="Otevřít předpověď počasí pro tuto oblast na yrno.cz v novém okně"
-          >
+          {/* 3. Odkaz a výběr počasí na trase (yrno.cz) */}
+          <div className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-3.5 border border-white/10 transition-all flex flex-col justify-between">
             <div className="flex items-center justify-between text-teal-200 text-xs font-medium mb-1">
               <span className="flex items-center gap-1.5">
                 <CloudSun className="w-4 h-4 text-amber-300" /> Počasí na trase
               </span>
-              <ExternalLink className="w-3.5 h-3.5 opacity-75 group-hover:opacity-100 transition-opacity" />
+              <a
+                href={`https://yrno.cz/plus/pocasi/?query=${encodeURIComponent(weatherLocation)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] bg-teal-500/30 hover:bg-teal-500/50 text-teal-100 px-2 py-0.5 rounded-full font-bold transition-colors flex items-center gap-1"
+                title="Otevřít předpověď pro vybrané místo na yrno.cz v novém okně"
+              >
+                <span>yrno.cz</span>
+                <ExternalLink className="w-2.5 h-2.5" />
+              </a>
             </div>
-            <div className="font-semibold text-sm sm:text-base text-white flex items-center justify-between">
-              <span className="truncate">{weatherLocation}</span>
-              <span className="text-[10px] bg-teal-500/30 text-teal-200 px-2 py-0.5 rounded-full font-bold">yrno.cz ↗</span>
+
+            <div className="mt-1">
+              {routeStops.length > 1 ? (
+                <div className="relative">
+                  <select
+                    value={weatherLocation}
+                    onChange={(e) => setSelectedWeatherLoc(e.target.value)}
+                    className="w-full bg-teal-950/60 text-white font-semibold text-xs sm:text-sm py-1.5 px-2.5 rounded-xl border border-white/20 appearance-none focus:outline-none focus:ring-1 focus:ring-amber-300 pr-7 cursor-pointer"
+                  >
+                    {routeStops.map((stop) => (
+                      <option key={stop} value={stop} className="bg-teal-900 text-white">
+                        📍 {stop}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-teal-300 absolute right-2 top-2.5 pointer-events-none" />
+                </div>
+              ) : (
+                <a
+                  href={`https://yrno.cz/plus/pocasi/?query=${encodeURIComponent(weatherLocation)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-sm sm:text-base text-white hover:underline truncate block"
+                >
+                  {weatherLocation}
+                </a>
+              )}
             </div>
-          </a>
+
+            <div className="text-[10px] text-teal-300/80 mt-1 flex items-center justify-between">
+              <span>Kliknutím na yrno.cz zobrazíte detail</span>
+            </div>
+          </div>
         </div>
 
-        {/* Small note under panel: připravováno pro ... osob */}
-        <div className="text-right text-xs text-teal-200/80 italic mt-3 pr-1 font-medium">
-          Připravováno pro {travelersCount} {travelersCount === 1 ? 'osobu' : travelersCount < 5 ? 'osoby' : 'osob'}
+        {/* Small note under panel: připravováno pro ... osob + Připomínky button */}
+        <div className="flex items-center justify-between flex-wrap gap-2 text-xs text-teal-200/80 mt-3 pr-1 font-medium">
+          {onOpenReminders ? (
+            <button
+              type="button"
+              onClick={onOpenReminders}
+              className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-xl text-teal-100 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
+            >
+              <Bell className="w-3.5 h-3.5 text-amber-300" />
+              <span>
+                Připomínky a úkoly k trase ({trip.reminders?.filter((r) => !r.is_completed).length || 0})
+              </span>
+            </button>
+          ) : <div />}
+          <div className="italic">
+            Připravováno pro {travelersCount} {travelersCount === 1 ? 'osobu' : travelersCount < 5 ? 'osoby' : 'osob'}
+          </div>
         </div>
       </div>
 

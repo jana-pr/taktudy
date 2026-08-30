@@ -19,6 +19,7 @@ interface NewTripModalProps {
   onCreateTrip: (data: {
     title: string;
     motto?: string;
+    country_region?: string;
     status?: TripStatus;
     startDate?: string;
     endDate?: string;
@@ -42,6 +43,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
   // Manual Form State
   const [title, setTitle] = useState('');
   const [motto, setMotto] = useState('');
+  const [countryRegion, setCountryRegion] = useState('');
   const [status, setStatus] = useState<TripStatus>('planning');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -66,6 +68,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
       await onCreateTrip({
         title: title.trim(),
         motto: motto.trim() || undefined,
+        country_region: countryRegion.trim() || undefined,
         status,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
@@ -75,6 +78,7 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
       // Reset form
       setTitle('');
       setMotto('');
+      setCountryRegion('');
       setStatus('planning');
       setStartDate('');
       setEndDate('');
@@ -243,6 +247,20 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
                   value={motto}
                   onChange={(e) => setMotto(e.target.value)}
                   placeholder="Např. Čajové plantáže, pláže a chrámy..."
+                  className="w-full px-3.5 py-2 border border-stone-200 dark:border-stone-700 rounded-xl text-xs dark:bg-stone-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-outdoor-teal"
+                />
+              </div>
+
+              {/* Destinace / Region */}
+              <div>
+                <label className="block text-xs font-bold text-stone-600 dark:text-stone-300 mb-1">
+                  Destinace / Region trasy (pro počasí)
+                </label>
+                <input
+                  type="text"
+                  value={countryRegion}
+                  onChange={(e) => setCountryRegion(e.target.value)}
+                  placeholder="Např. Jižní Morava, Srí Lanka, Toskánsko, Madeira..."
                   className="w-full px-3.5 py-2 border border-stone-200 dark:border-stone-700 rounded-xl text-xs dark:bg-stone-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-outdoor-teal"
                 />
               </div>

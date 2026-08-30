@@ -21,7 +21,10 @@ import {
   X,
   Lightbulb,
   MapPin,
+  Bell,
+  CalendarRange,
 } from 'lucide-react';
+import { sortTrips, formatTripDateRange, getTripStatusInfo } from '../utils/tripSort';
 
 interface NavbarProps {
   trips: Trip[];
@@ -39,6 +42,8 @@ interface NavbarProps {
   onOpenQrModal?: () => void;
   onOpenTips?: () => void;
   onOpenPoiManager?: () => void;
+  onOpenReminders?: () => void;
+  onOpenAllTrips?: () => void;
   activeTab?: string;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
@@ -65,6 +70,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenQrModal,
   onOpenTips,
   onOpenPoiManager,
+  onOpenReminders,
+  onOpenAllTrips,
   activeTab,
   isDarkMode,
   onToggleDarkMode,
@@ -96,21 +103,66 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Trip Selector Dropdown & "Správa" Menu */}
         <div className="flex-1 min-w-0 mx-1 sm:mx-2 flex items-center gap-1 sm:gap-1.5">
           {trips.length > 0 ? (
-            <select
-              value={activeTrip?.id || ''}
-              onChange={(e) => {
-                const found = trips.find((t) => t.id === e.target.value);
-                if (found) onSelectTrip(found);
-              }}
-              aria-label="Výběr aktivní cesty"
-              className="flex-1 min-w-0 text-xs font-semibold bg-stone-100 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700 rounded-lg px-2 py-1 sm:px-2.5 sm:py-1.5 text-outdoor-text dark:text-outdoor-dark-text focus:outline-none focus:ring-2 focus:ring-outdoor-teal transition-colors truncate"
-            >
-              {trips.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.title}
-                </option>
-              ))}
-            </select>
+            <div className="flex-1 min-w-0 flex items-center gap-1">
+              <select
+                value={activeTrip?.id || ''}
+                onChange={(e) => {
+                  const found = trips.find((t) => t.id === e.target.value);
+                  if (found) onSelectTrip(found);
+                }}
+                aria-label="Výběr aktivní cesty"
+                className="flex-1 min-w-0 text-xs font-semibold bg-stone-100 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-700 rounded-lg px-2 py-1 sm:px-2.5 sm:py-1.5 text-outdoor-text dark:text-outdoor-dark-text focus:outline-none focus:ring-2 focus:ring-outdoor-teal transition-colors truncate"
+              >
+                {/* Active and Upcoming Trips */}
+                {sortTrips(trips)
+                  .filter((t) => t.status !== 'completed' && t.status !== 'archived')
+                  .length > 0 && (
+                  <optgroup label="📅 Nadcházející a aktivní cesty">
+                    {sortTrips(trips)
+                      .filter((t) => t.status !== 'completed' && t.status !== 'archived')
+                      .map((t) => {
+                        const dateText = formatTripDateRange(t.start_date, t.end_date);
+                        const statusInfo = getTripStatusInfo(t.status);
+                        return (
+                          <option key={t.id} value={t.id}>
+                            {t.title} {dateText !== 'Termín neurčen' ? `(${dateText})` : ''} • {statusInfo.label}
+                          </option>
+                        );
+                      })}
+                  </optgroup>
+                )}
+
+                {/* Completed and Archived Trips (At the bottom) */}
+                {sortTrips(trips)
+                  .filter((t) => t.status === 'completed' || t.status === 'archived')
+                  .length > 0 && (
+                  <optgroup label="✅ Dokončené cesty (Archiv)">
+                    {sortTrips(trips)
+                      .filter((t) => t.status === 'completed' || t.status === 'archived')
+                      .map((t) => {
+                        const dateText = formatTripDateRange(t.start_date, t.end_date);
+                        return (
+                          <option key={t.id} value={t.id}>
+                            ✓ {t.title} {dateText !== 'Termín neurčen' ? `(${dateText})` : ''} • Dokončeno
+                          </option>
+                        );
+                      })}
+                  </optgroup>
+                )}
+              </select>
+
+              {onOpenAllTrips && (
+                <button
+                  type="button"
+                  onClick={onOpenAllTrips}
+                  className="p-1 sm:p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 transition-colors shrink-0"
+                  title="Otevřít přehled všech cest (termíny, stavy)"
+                  aria-label="Přehled všech cest"
+                >
+                  <CalendarRange className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-600 dark:text-teal-400" />
+                </button>
+              )}
+            </div>
           ) : (
             <button
               type="button"
@@ -201,23 +253,64 @@ export const Navbar: React.FC<NavbarProps> = ({
                       </div>
                     </button>
 
-                    {/* 1. Nastavení cesty */}
-                    {onOpenEditTrip && (
+                    {/* Přehled všech cest */}
+                    {onOpenAllTrips && (
                       <button
                         type="button"
                         onClick={() => {
                           setIsManageOpen(false);
-                          onOpenEditTrip();
+                          onOpenAllTrips();
                         }}
                         className="w-full px-3.5 py-2.5 text-left hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-200 font-semibold flex items-center gap-2.5 transition-colors"
                       >
-                        <Settings className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                        <CalendarRange className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
                         <div>
-                          <div className="font-bold">Nastavení cesty</div>
-                          <div className="text-[10px] text-stone-400 font-normal">Název, motto, termín cesty</div>
+                          <div className="font-bold">Přehled všech cest</div>
+                          <div className="text-[10px] text-stone-400 font-normal">Termíny výletů, stavy, chronologické řazení</div>
                         </div>
                       </button>
                     )}
+                    
+                    <div className="py-1">
+                      {/* 0. Připomínky a úkoly k trase */}
+                      {onOpenReminders && activeTrip && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsManageOpen(false);
+                            onOpenReminders();
+                          }}
+                          className="w-full px-3.5 py-2.5 text-left hover:bg-teal-50 dark:hover:bg-teal-950/30 text-teal-800 dark:text-teal-200 font-semibold flex items-center gap-2.5 transition-colors border-b border-stone-100 dark:border-stone-800"
+                        >
+                          <Bell className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                          <div>
+                            <div className="font-bold flex items-center gap-1.5">
+                              <span>Připomínky k trase</span>
+                              <span className="text-[9px] bg-teal-500 text-white px-1.5 py-0.2 rounded-full">Notifikace</span>
+                            </div>
+                            <div className="text-[10px] text-teal-600/80 dark:text-teal-400 font-normal">Rezervace restaurací, lístky, jízdenky</div>
+                          </div>
+                        </button>
+                      )}
+
+                      {/* 1. Nastavení cesty */}
+                      {onOpenEditTrip && activeTrip && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsManageOpen(false);
+                            onOpenEditTrip();
+                          }}
+                          className="w-full px-3.5 py-2.5 text-left hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-200 font-semibold flex items-center gap-2.5 transition-colors"
+                        >
+                          <Settings className="w-4 h-4 text-stone-500 shrink-0" />
+                          <div>
+                            <div className="font-bold">Nastavení cesty</div>
+                            <div className="text-[10px] text-stone-400 font-normal">Základní údaje, název a termín</div>
+                          </div>
+                        </button>
+                      )}
+                    </div>
 
                     {/* Správa zájmových bodů */}
                     {onOpenPoiManager && (
