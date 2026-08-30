@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import maplibregl from 'maplibre-gl';
 import { POI, Category, Day, Tip, Accommodation } from '../types';
 import { Star, Layers, Plus, MapPin, Lightbulb, Bed, ExternalLink, X, DollarSign, ShieldCheck, Navigation } from 'lucide-react';
@@ -82,6 +82,7 @@ export const MapView: React.FC<MapViewProps> = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  const lastFittedScopeRef = useRef<string>('');
   const safePois = pois || [];
   const safeAccommodations = accommodations || [];
 
@@ -121,19 +122,23 @@ export const MapView: React.FC<MapViewProps> = ({
   const [showAccommodations, setShowAccommodations] = useState(true);
   const [selectedAccommodation, setSelectedAccommodation] = useState<Accommodation | null>(null);
 
-  // Filter POIs by Category (Multiselect), Top, and Day
-  const filteredPois = safePois.filter((p) => {
-    if (selectedDayId && p.day_id !== selectedDayId) return false;
-    if (onlyTop && !p.is_top) return false;
-    if (selectedCats.length > 0 && !selectedCats.includes(p.category_id)) return false;
-    return true;
-  });
+  // Filter POIs by Category (Multiselect), Top, and Day (Memoized so it doesn't cause spurious re-fits)
+  const filteredPois = useMemo(() => {
+    return safePois.filter((p) => {
+      if (selectedDayId && p.day_id !== selectedDayId) return false;
+      if (onlyTop && !p.is_top) return false;
+      if (selectedCats.length > 0 && !selectedCats.includes(p.category_id)) return false;
+      return true;
+    });
+  }, [safePois, selectedDayId, onlyTop, selectedCats]);
 
-  // Filter Accommodations by Day
-  const filteredAccommodations = safeAccommodations.filter((acc) => {
-    if (selectedDayId && acc.day_id && acc.day_id !== selectedDayId) return false;
-    return true;
-  });
+  // Filter Accommodations by Day (Memoized)
+  const filteredAccommodations = useMemo(() => {
+    return safeAccommodations.filter((acc) => {
+      if (selectedDayId && acc.day_id && acc.day_id !== selectedDayId) return false;
+      return true;
+    });
+  }, [safeAccommodations, selectedDayId]);
 
   // Init map
   useEffect(() => {
@@ -367,13 +372,18 @@ export const MapView: React.FC<MapViewProps> = ({
       });
     }
 
-    // Fit map bounds to show all markers
+    // Fit map bounds only if the filter scope changed (e.g. switching day or initial load),
+    // NEVER when the user is simply zooming or clicking on a marker / opening details!
+    const currentScope = `${selectedDayId || 'all'}_${onlyTop}_${[...selectedCats].sort().join(',')}_${safePois.length}_${safeAccommodations.length}_${showTips ? (tips || []).length : 0}`;
+    const shouldFitBounds = lastFittedScopeRef.current !== currentScope;
+
     const hasMarkers =
       coordinates.length > 0 ||
       (showAccommodations && filteredAccommodations.length > 0) ||
-      (showTips && tips.some((t) => t.lat && t.lng));
+      (showTips && (tips || []).some((t) => t.lat && t.lng));
 
-    if (hasMarkers && !bounds.isEmpty()) {
+    if (hasMarkers && !bounds.isEmpty() && shouldFitBounds) {
+      lastFittedScopeRef.current = currentScope;
       map.fitBounds(bounds, {
         padding: { top: 70, bottom: 90, left: 40, right: 40 },
         maxZoom: 14,
@@ -550,7 +560,7 @@ export const MapView: React.FC<MapViewProps> = ({
       </div>
 
       {/* Floating Add POI Button & Hint */}
-      <div className="absolute bottom-6 right-4 z-10 flex flex-col items-end gap-2 pointer-events-auto">
+      <div className="absolute bottom-24 sm:bottom-6 right-4 z-30 flex flex-col items-end gap-2 pointer-events-auto">
         <div className="hidden sm:block text-[11px] font-semibold bg-stone-900/80 text-white px-3 py-1.5 rounded-xl backdrop-blur-sm shadow-lg border border-white/10">
           💡 Kliknutím kamkoliv do mapy přidáte bod
         </div>
@@ -558,7 +568,7 @@ export const MapView: React.FC<MapViewProps> = ({
         {onOpenQuickAdd && (
           <button
             onClick={onOpenQuickAdd}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-outdoor-coral hover:bg-outdoor-coral/90 text-white font-bold text-sm shadow-xl transition-all active:scale-95 hover:shadow-2xl"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-outdoor-coral hover:bg-outdoor-coral/90 text-white font-bold text-sm shadow-2xl transition-all active:scale-95 hover:shadow-2xl border-2 border-white/30"
             title="Přidat nový bod zájmu do cesty"
           >
             <Plus className="w-4 h-4" />

@@ -88,6 +88,16 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           <span className="text-[10px] tracking-tight">Dnes</span>
         </button>
 
+        {/* Quick Add POI floating chip on mobile */}
+        <button
+          onClick={onQuickAdd}
+          title="Přidat nový bod zájmu do cesty"
+          className="absolute -top-12 left-4 px-3.5 py-1.5 rounded-full bg-outdoor-coral hover:bg-outdoor-coral/90 text-white shadow-md text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all border border-white/20"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>+ Přidat bod</span>
+        </button>
+
         {/* Near me floating quick chip */}
         <button
           onClick={onOpenNearMe}
