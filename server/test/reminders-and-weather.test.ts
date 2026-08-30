@@ -106,8 +106,8 @@ describe('Trip Reminders and Weather Region Integration Tests', () => {
 
     // Verify weather query targets the specific region
     const encodedRegion = encodeURIComponent(trip.country_region);
-    const weatherUrl = `https://yrno.cz/plus/pocasi/?query=${encodedRegion}`;
-    expect(weatherUrl).toBe('https://yrno.cz/plus/pocasi/?query=Madeira');
+    const weatherUrl = `https://www.yr.no/en/search?q=${encodedRegion}`;
+    expect(weatherUrl).toBe('https://www.yr.no/en/search?q=Madeira');
   });
 
   it('Reminders: Cascade deletion when parent trip is deleted', () => {

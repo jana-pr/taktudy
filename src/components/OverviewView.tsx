@@ -187,20 +187,20 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
           </div>
 
-          {/* 3. Odkaz a výběr počasí na trase (yrno.cz) */}
+          {/* 3. Odkaz a výběr počasí na trase (yr.no) */}
           <div className="bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl p-3.5 border border-white/10 transition-all flex flex-col justify-between">
             <div className="flex items-center justify-between text-teal-200 text-xs font-medium mb-1">
               <span className="flex items-center gap-1.5">
                 <CloudSun className="w-4 h-4 text-amber-300" /> Počasí na trase
               </span>
               <a
-                href={`https://yrno.cz/plus/pocasi/?query=${encodeURIComponent(weatherLocation)}`}
+                href={weatherLocation ? `https://www.yr.no/en/search?q=${encodeURIComponent(weatherLocation)}` : 'https://www.yr.no/en'}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[10px] bg-teal-500/30 hover:bg-teal-500/50 text-teal-100 px-2 py-0.5 rounded-full font-bold transition-colors flex items-center gap-1"
-                title="Otevřít předpověď pro vybrané místo na yrno.cz v novém okně"
+                title="Otevřít předpověď pro vybrané místo na yr.no v novém okně"
               >
-                <span>yrno.cz</span>
+                <span>yr.no</span>
                 <ExternalLink className="w-2.5 h-2.5" />
               </a>
             </div>
@@ -223,7 +223,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 </div>
               ) : (
                 <a
-                  href={`https://yrno.cz/plus/pocasi/?query=${encodeURIComponent(weatherLocation)}`}
+                  href={weatherLocation ? `https://www.yr.no/en/search?q=${encodeURIComponent(weatherLocation)}` : 'https://www.yr.no/en'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-semibold text-sm sm:text-base text-white hover:underline truncate block"
@@ -234,7 +234,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
 
             <div className="text-[10px] text-teal-300/80 mt-1 flex items-center justify-between">
-              <span>Kliknutím na yrno.cz zobrazíte detail</span>
+              <span>Kliknutím na yr.no zobrazíte detail</span>
             </div>
           </div>
         </div>

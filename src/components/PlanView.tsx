@@ -211,11 +211,11 @@ export const PlanView: React.FC<PlanViewProps> = ({
                 <div className="shrink-0 flex items-center gap-2 flex-wrap">
                   {day.overnight_location && (
                     <a
-                      href={`https://yrno.cz/plus/pocasi/?query=${encodeURIComponent(day.overnight_location)}`}
+                      href={`https://www.yr.no/en/search?q=${encodeURIComponent(day.overnight_location)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-3 py-2 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
-                      title={`Předpověď počasí pro cíl dne (${day.overnight_location}) na yrno.cz`}
+                      title={`Předpověď počasí pro cíl dne (${day.overnight_location}) na yr.no`}
                     >
                       <CloudSun className="w-3.5 h-3.5 text-amber-500" />
                       <span>Počasí: {day.overnight_location}</span>
