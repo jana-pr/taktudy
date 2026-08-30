@@ -516,24 +516,18 @@ export const TipsView: React.FC<TipsViewProps> = ({
           <p className="text-xs text-gray-500">Načítám zásobárnu tipů...</p>
         </div>
       ) : filteredTips.length === 0 ? (
-        <div className="text-center py-16 p-8 bg-white dark:bg-gray-800 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700 space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
-            <Lightbulb className="w-6 h-6" />
+        <div className="text-center py-12 p-8 bg-white dark:bg-gray-800 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700 space-y-2">
+          <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+            <Lightbulb className="w-5 h-5" />
           </div>
           <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-            Žádné tipy v této kategorii
+            {tips.length === 0 ? 'Zásobárna tipů je prázdná' : 'Žádné tipy v této kategorii'}
           </h3>
           <p className="text-xs text-gray-500 max-w-sm mx-auto">
-            Přidejte si místa, která chcete na cestě prozkoumat, a mějte je po ruce!
+            {tips.length === 0
+              ? 'Nové tipy z celého světa můžete kdykoliv přidat tlačítkem výše.'
+              : 'Zkuste vybrat jinou kategorii nebo smazat hledaný výraz.'}
           </p>
-          <button
-            type="button"
-            onClick={() => setIsAddOpen(true)}
-            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-sm"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Přidat první tip</span>
-          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

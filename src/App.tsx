@@ -514,8 +514,8 @@ export function App() {
           onLogout={handleLogout}
         />
 
-        {/* Sub-Header Tabs */}
-        {activeTrip && (
+        {/* Sub-Header Tabs (pouze pro konkrétní cestu, ne při globálních Tipech) */}
+        {activeTrip && activeTab !== 'tips' && (
           <div className="w-full max-w-full border-t border-stone-100 dark:border-stone-800/80 px-2 py-1.5 sm:px-6 sm:py-2">
             <div className="max-w-7xl mx-auto w-full">
               {/* Mobile View: ONLY Ubytování and Rezervace (Other tabs are in bottom navigation) */}
@@ -625,20 +625,7 @@ export function App() {
                   <span>Rozpočet</span>
                 </button>
 
-                {/* 7. Zásobárna tipů */}
-                <button
-                  onClick={() => setActiveTab('tips')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                    activeTab === 'tips'
-                      ? 'bg-amber-500 text-white shadow-xs'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }`}
-                >
-                  <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Tipy</span>
-                </button>
-
-                {/* 8. DNES */}
+                {/* DNES */}
                 <button
                   onClick={() => setActiveTab('today')}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all shadow-xs ml-auto ${
@@ -770,7 +757,7 @@ export function App() {
 
             {activeTab === 'tips' && (
               <TipsView
-                activeTrip={activeTrip}
+                activeTrip={null}
                 onNavigateToMap={(lat, lng) => {
                   setActiveTab('map');
                 }}

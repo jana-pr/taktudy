@@ -99,19 +99,16 @@ describe('Budget Calculations Verification', () => {
     expect(budget.poisPerPerson).toBe(450);
     expect(budget.totalPoisCost).toBe(900);
 
-    // Stravování: 4 dny * 25 = 100 / osoba -> 200 celkem
-    expect(budget.foodPerPerson).toBe(100);
-    expect(budget.totalFoodCost).toBe(200);
+    // 3 Pilíře: Ubytování (6000) + Cesta (1200) + Náklady (900)
+    expect(budget.totalHotelCost).toBe(6000);
+    expect(budget.totalTravelCost).toBe(1200);
+    expect(budget.totalActivitiesCost).toBe(900);
 
-    // Drobné kapesné: 4 dny * 5 = 20 / osoba -> 40 celkem
-    expect(budget.otherDailyPerPerson).toBe(20);
-    expect(budget.totalOtherDailyCost).toBe(40);
+    // Celkem = 6000 (ubytování) + 1200 (cesta) + 900 (náklady/vstupy) = 8100
+    expect(budget.grandTotal).toBe(8100);
 
-    // Celkem = 6000 + 1200 + 900 + 200 + 40 = 8340
-    expect(budget.grandTotal).toBe(8340);
-
-    // Na osobu = 8340 / 2 = 4170
-    expect(budget.averagePerPerson).toBe(4170);
+    // Na osobu = 8100 / 2 = 4050
+    expect(budget.averagePerPerson).toBe(4050);
 
     // Matematická konzistence: averagePerPerson * 2 === grandTotal
     expect(budget.averagePerPerson * 2).toBe(budget.grandTotal);

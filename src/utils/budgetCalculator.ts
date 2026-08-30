@@ -48,6 +48,13 @@ export interface TripBudgetCalculation {
   otherDailyPerPerson: number;
   totalOtherDailyCost: number;
 
+  // Aggregated Pillars (Ubytování + Cesta + Náklady)
+  totalTravelCost: number;
+  travelPerPerson: number;
+
+  totalActivitiesCost: number;
+  activitiesPerPerson: number;
+
   // Common shared costs per person (excluding hotels)
   commonPerPerson: number;
 
@@ -180,9 +187,9 @@ export function calculateTripBudget(
   const totalPoisCost = totalMandatoryTicketsCost + totalActiveOptionalCost;
   const poisPerPerson = mandatoryTicketsPerPerson + activeOptionalPerPerson;
 
-  // 8. Food & pocket money estimates
-  let foodPerPerson = Math.round(daysCount * 25);
-  let otherDailyPerPerson = Math.round(daysCount * 5);
+  // 8. Food & pocket money (pouze pro původní demo trip_srilanka_2026, jinak 0)
+  let foodPerPerson = 0;
+  let otherDailyPerPerson = 0;
 
   if (trip.id === 'trip_srilanka_2026') {
     foodPerPerson = 400; // 16 dni
@@ -191,15 +198,20 @@ export function calculateTripBudget(
   const totalFoodCost = foodPerPerson * travelersCount;
   const totalOtherDailyCost = otherDailyPerPerson * travelersCount;
 
-  // Common costs per person (all shared expenses except hotel accommodation)
+  // Souhrnné pilíře nákladů:
+  // 1. Ubytování = totalHotelCost
+  // 2. Cesta = Letenky + Doprava (auto/řidič/transfery) + Vlaky/trajekty
+  const totalTravelCost = totalFlightCost + totalTransportCost + totalTrainCost;
+  const travelPerPerson = Math.round(totalTravelCost / travelersCount);
+
+  // 3. Náklady na místě = Vstupy & Památky (POIs) + Rezervované aktivity + Víza & Pojištění + Ostatní rezervace
+  const totalActivitiesCost = totalPoisCost + totalVisaInsuranceCost + totalOtherBookingsCost;
+  const activitiesPerPerson = Math.round(totalActivitiesCost / travelersCount);
+
+  // Společné náklady na osobu (vše kromě ubytování)
   const commonPerPerson =
-    flightPerPerson +
-    transportPerPerson +
-    trainPerPerson +
-    visaInsurancePerPerson +
-    Math.round(totalOtherBookingsCost / travelersCount) +
-    mandatoryTicketsPerPerson +
-    activeOptionalPerPerson +
+    travelPerPerson +
+    activitiesPerPerson +
     foodPerPerson +
     otherDailyPerPerson;
 
@@ -208,13 +220,11 @@ export function calculateTripBudget(
   const perPersonTotalSingle = commonPerPerson + hotelSinglePerPerson;
   const perPersonTotalTriple = commonPerPerson + hotelTriplePerPerson;
 
-  // Grand total
+  // Celkový součet cesty (Ubytování + Cesta + Náklady)
   const grandTotal =
-    travelersCount === 3
-      ? scenario === '2+1'
-        ? perPersonTotalDouble * 2 + perPersonTotalSingle
-        : perPersonTotalTriple * 3
-      : commonPerPerson * travelersCount + totalHotelCost;
+    travelersCount === 3 && scenario === '2+1'
+      ? perPersonTotalDouble * 2 + perPersonTotalSingle
+      : totalHotelCost + totalTravelCost + totalActivitiesCost + totalFoodCost + totalOtherDailyCost;
 
   const averagePerPerson = Math.round(grandTotal / travelersCount);
 
@@ -250,6 +260,10 @@ export function calculateTripBudget(
     totalFoodCost,
     otherDailyPerPerson,
     totalOtherDailyCost,
+    totalTravelCost,
+    travelPerPerson,
+    totalActivitiesCost,
+    activitiesPerPerson,
     commonPerPerson,
     perPersonTotalDouble,
     perPersonTotalSingle,

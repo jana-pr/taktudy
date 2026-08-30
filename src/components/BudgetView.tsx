@@ -147,6 +147,48 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) =
         </div>
       </div>
 
+      {/* 3 Pillars Summary: Ubytování + Cesta + Náklady */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-teal-100 dark:border-teal-900/50 shadow-xs">
+          <div className="flex items-center gap-2 text-teal-700 dark:text-teal-300 text-xs font-bold uppercase tracking-wider">
+            <Bed className="w-4 h-4" />
+            <span>1. Ubytování</span>
+          </div>
+          <div className="text-xl font-bold text-gray-900 dark:text-white mt-1">
+            ${budget.totalHotelCost.toLocaleString()} <span className="text-xs font-normal text-gray-500">{currency}</span>
+          </div>
+          <div className="text-[11px] text-gray-500 mt-0.5">
+            ${budget.hotelAveragePerPerson.toLocaleString()} {currency} / os. ({nightsCount} nocí)
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-blue-100 dark:border-blue-900/50 shadow-xs">
+          <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 text-xs font-bold uppercase tracking-wider">
+            <Plane className="w-4 h-4" />
+            <span>2. Cesta a doprava</span>
+          </div>
+          <div className="text-xl font-bold text-gray-900 dark:text-white mt-1">
+            ${budget.totalTravelCost.toLocaleString()} <span className="text-xs font-normal text-gray-500">{currency}</span>
+          </div>
+          <div className="text-[11px] text-gray-500 mt-0.5">
+            ${budget.travelPerPerson.toLocaleString()} {currency} / os. (letenky + transfery)
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-purple-100 dark:border-purple-900/50 shadow-xs">
+          <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300 text-xs font-bold uppercase tracking-wider">
+            <Ticket className="w-4 h-4" />
+            <span>3. Náklady & Vstupy</span>
+          </div>
+          <div className="text-xl font-bold text-gray-900 dark:text-white mt-1">
+            ${budget.totalActivitiesCost.toLocaleString()} <span className="text-xs font-normal text-gray-500">{currency}</span>
+          </div>
+          <div className="text-[11px] text-gray-500 mt-0.5">
+            ${budget.activitiesPerPerson.toLocaleString()} {currency} / os. (vstupy a zážitky)
+          </div>
+        </div>
+      </div>
+
       {/* Breakdown Items List */}
       <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
@@ -278,22 +320,24 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) =
             </div>
           )}
 
-          {/* Food */}
-          <div className="py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 flex items-center justify-center">
-                <Utensils className="w-4 h-4" />
+          {/* Food (pouze pokud je zadáno v rozpočtu) */}
+          {budget.totalFoodCost > 0 && (
+            <div className="py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 flex items-center justify-center">
+                  <Utensils className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900 dark:text-white">Stravování, obědy a večeře ({daysCount} dní)</div>
+                  <div className="text-xs text-gray-500">Odhady ~$25 / den / osoba (snídaně v ubytování)</div>
+                </div>
               </div>
-              <div>
-                <div className="font-semibold text-gray-900 dark:text-white">Stravování, obědy a večeře ({daysCount} dní)</div>
-                <div className="text-xs text-gray-500">Odhady ~$25 / den / osoba (snídaně v ubytování)</div>
+              <div className="text-right font-bold text-gray-900 dark:text-white">
+                ${budget.totalFoodCost.toLocaleString()}{' '}
+                <span className="text-xs font-normal text-gray-500">(${budget.foodPerPerson}/os.)</span>
               </div>
             </div>
-            <div className="text-right font-bold text-gray-900 dark:text-white">
-              ${budget.totalFoodCost.toLocaleString()}{' '}
-              <span className="text-xs font-normal text-gray-500">(${budget.foodPerPerson}/os.)</span>
-            </div>
-          </div>
+          )}
 
           {/* Pocket money / SIM / tips */}
           {budget.totalOtherDailyCost > 0 && (

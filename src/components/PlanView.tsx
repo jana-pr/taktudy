@@ -218,8 +218,8 @@ export const PlanView: React.FC<PlanViewProps> = ({
                 </div>
               </div>
 
-              {/* Special Parallel Transit: Day 9 (3. 1.) */}
-              {day.day_number === 9 && (
+              {/* Special Parallel Transit: Day 9 (3. 1.) - pouze pro staré demo Srí Lanka */}
+              {trip.id === 'trip_srilanka_2026' && day.day_number === 9 && (
                 <div className="p-4 bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 rounded-2xl text-xs space-y-2">
                   <div className="font-bold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
                     <span>🚆 Souběžný paralelní přesun:</span>
@@ -235,8 +235,8 @@ export const PlanView: React.FC<PlanViewProps> = ({
                 </div>
               )}
 
-              {/* Special Safari Selector: Day 3 (28. 12.) */}
-              {day.day_number === 3 && (
+              {/* Special Safari Selector: Day 3 (28. 12.) - pouze pro staré demo Srí Lanka */}
+              {trip.id === 'trip_srilanka_2026' && day.day_number === 3 && (
                 <div className="p-4 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-2xl text-xs space-y-2">
                   <div className="font-bold text-amber-900 dark:text-amber-200 flex items-center justify-between">
                     <span>🐘 Odpolední Safari – Výběr na místě podle pohybu slonů:</span>

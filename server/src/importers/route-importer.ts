@@ -576,6 +576,29 @@ function parseJson(jsonStr: string): ImportedTripResult {
     const sourceUrl = p.source_url || p.booking_url || p.website_url || p.url || p.link || p.odkaz || null;
     const bookingUrl = p.booking_url || (cat === 'accommodation' ? sourceUrl : null);
 
+    let photoUrl =
+      p.main_photo_url ||
+      p.photo_url ||
+      p.photo ||
+      p.foto ||
+      p.fotka ||
+      p.picture ||
+      p.image_url ||
+      p.image ||
+      p.img ||
+      p.obrazek ||
+      null;
+
+    if (!photoUrl && Array.isArray(p.photos) && p.photos.length > 0) {
+      photoUrl = typeof p.photos[0] === 'string' ? p.photos[0] : p.photos[0]?.url;
+    }
+    if (!photoUrl && Array.isArray(p.images) && p.images.length > 0) {
+      photoUrl = typeof p.images[0] === 'string' ? p.images[0] : p.images[0]?.url;
+    }
+    if (!photoUrl && Array.isArray(p.fotky) && p.fotky.length > 0) {
+      photoUrl = typeof p.fotky[0] === 'string' ? p.fotky[0] : p.fotky[0]?.url;
+    }
+
     return {
         name,
         lat,
@@ -592,7 +615,7 @@ function parseJson(jsonStr: string): ImportedTripResult {
         day_number: Number(p.day_number || p.day || p.den) || 1,
         source_url: sourceUrl,
         booking_url: bookingUrl,
-        main_photo_url: p.main_photo_url || p.photo_url || p.image_url || p.image || null,
+        main_photo_url: photoUrl || null,
       };
     });
 
