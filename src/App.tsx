@@ -145,8 +145,9 @@ export function App() {
         const refreshed = await tripsApi.get(activeTrip.id);
         setActiveTrip(refreshed);
       } else if (tripsData.length > 0) {
-        const defaultTrip = tripsData.find((t) => t.id === 'trip_srilanka_2026') || tripsData[0];
-        const full = await tripsApi.get(defaultTrip.id);
+        const savedTripId = localStorage.getItem('taktudy_active_trip_id');
+        const preferred = (savedTripId && tripsData.find((t) => t.id === savedTripId)) || tripsData[0];
+        const full = await tripsApi.get(preferred.id);
         setActiveTrip(full);
       }
 
@@ -234,10 +235,9 @@ export function App() {
       setTips(tipsData);
 
       if (tripsData.length > 0) {
-        // Find Sri Lanka 2026 trip if available or take first
-        const sriLankaTrip = tripsData.find((t) => t.id === 'trip_srilanka_2026');
-        const defaultTrip = sriLankaTrip || tripsData[0];
-        const full = await tripsApi.get(defaultTrip.id);
+        const savedTripId = localStorage.getItem('taktudy_active_trip_id');
+        const preferred = (savedTripId && tripsData.find((t) => t.id === savedTripId)) || tripsData[0];
+        const full = await tripsApi.get(preferred.id);
         setActiveTrip(full);
       }
     } catch (err) {
@@ -287,6 +287,7 @@ export function App() {
       setLoading(true);
       const full = await tripsApi.get(trip.id);
       setActiveTrip(full);
+      localStorage.setItem('taktudy_active_trip_id', trip.id);
     } catch (err) {
       console.error('Chyba při načítání cesty:', err);
     } finally {
@@ -303,6 +304,7 @@ export function App() {
     routeUrl?: string;
   }) => {
     const created = await tripsApi.create(data);
+    localStorage.setItem('taktudy_active_trip_id', created.id);
     await loadData();
     const full = await tripsApi.get(created.id);
     setActiveTrip(full);
@@ -310,6 +312,7 @@ export function App() {
   };
 
   const handleTripCreatedFromAiOrImport = async (tripId: string) => {
+    localStorage.setItem('taktudy_active_trip_id', tripId);
     await loadData();
     try {
       const full = await tripsApi.get(tripId);
@@ -331,6 +334,7 @@ export function App() {
   const handleDuplicateTrip = async () => {
     if (!activeTrip) return;
     const res = await tripsApi.duplicate(activeTrip.id);
+    localStorage.setItem('taktudy_active_trip_id', res.id);
     await loadData();
     const full = await tripsApi.get(res.id);
     setActiveTrip(full);

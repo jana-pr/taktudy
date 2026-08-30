@@ -33,8 +33,12 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   private handleClearAllAndReload = () => {
+    const token = localStorage.getItem('taktudy_token');
+    const user = localStorage.getItem('taktudy_user');
     localStorage.clear();
     sessionStorage.clear();
+    if (token) localStorage.setItem('taktudy_token', token);
+    if (user) localStorage.setItem('taktudy_user', user);
     window.location.href = window.location.origin;
   };
 

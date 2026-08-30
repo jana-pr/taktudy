@@ -20,6 +20,7 @@ import {
   RefreshCw,
   X,
   Lightbulb,
+  MapPin,
 } from 'lucide-react';
 
 interface NavbarProps {

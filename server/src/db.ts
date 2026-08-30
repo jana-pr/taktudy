@@ -334,10 +334,9 @@ function runMigrations() {
     } catch {}
   }
 
-  // User requested clean slate: mark all previous trips as deleted and completely wipe tips history
+  // Restore any accidentally marked trips that have active pois or days
   try {
-    db.exec(`UPDATE trips SET is_deleted = 1;`);
-    db.exec(`DELETE FROM tips;`);
+    db.exec(`UPDATE trips SET is_deleted = 0 WHERE id IN (SELECT DISTINCT trip_id FROM pois);`);
   } catch {}
 
   // Backfill accommodation GPS coordinates based on known location keywords

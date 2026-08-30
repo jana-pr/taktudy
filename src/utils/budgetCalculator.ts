@@ -116,7 +116,13 @@ export function calculateTripBudget(
   const hotelAveragePerPerson = Math.round(totalHotelCost / travelersCount);
 
   // 2. Flights
-  const flightBookings = bookings.filter((b) => b.type === 'flight' && b.status !== 'cancelled');
+  const flightBookings = bookings.filter(
+    (b) =>
+      (b.type === 'flight' ||
+        (b as any).type === 'letenky' ||
+        (b as any).type?.includes('let')) &&
+      b.status !== 'cancelled'
+  );
   const hasFlightBookings = flightBookings.length > 0;
   let totalFlightCost = flightBookings.reduce((sum, b) => sum + (Number(b.price) || 0), 0);
 
@@ -126,14 +132,35 @@ export function calculateTripBudget(
   }
   const flightPerPerson = Math.round(totalFlightCost / travelersCount);
 
-  // 3. Transport (Driver / car rental)
-  const transportBookings = bookings.filter((b) => b.type === 'transport' && b.status !== 'cancelled');
+  // 3. Transport (Driver / car rental / transfers)
+  const transportBookings = bookings.filter(
+    (b) =>
+      (b.type === 'transport' ||
+        b.type === 'car' ||
+        (b as any).type === 'auto' ||
+        (b as any).type === 'transfer' ||
+        (b as any).type === 'doprava' ||
+        (b as any).type?.includes('doprav')) &&
+      b.status !== 'cancelled'
+  );
   let totalTransportCost = transportBookings.reduce((sum, b) => sum + (Number(b.price) || 0), 0);
   let transportServiceName = transportBookings[0]?.title || '';
 
   if (totalTransportCost === 0 && trip.transportServices && trip.transportServices.length > 0) {
     totalTransportCost = trip.transportServices.reduce((sum, s) => sum + (Number(s.total_price) || 0), 0);
     transportServiceName = trip.transportServices[0]?.service_name || '';
+  }
+
+  // If still 0, check if trip.primary_transport contains a dollar amount (e.g. "Auto s řidičem ($850)")
+  if (totalTransportCost === 0 && trip.primary_transport) {
+    const priceMatch = trip.primary_transport.match(/\$?(\d+[\d\s,.]*)\s*(?:USD|\$|Kč|EUR)?/i);
+    if (priceMatch) {
+      const parsedPrice = parseFloat(priceMatch[1].replace(/\s/g, '').replace(',', '.'));
+      if (!isNaN(parsedPrice) && parsedPrice > 0) {
+        totalTransportCost = parsedPrice;
+        transportServiceName = trip.primary_transport;
+      }
+    }
   }
 
   if (totalTransportCost === 0 && trip.id === 'trip_srilanka_2026') {

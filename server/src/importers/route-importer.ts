@@ -674,31 +674,95 @@ function parseJson(jsonStr: string): ImportedTripResult {
     rooms_count: Number(a.rooms_count || a.rooms || a.pokoje) || 2,
   }));
 
-  // Extract bookings / reservations
-  const rawBookings: any[] = Array.isArray(data.bookings)
-    ? [...data.bookings]
-    : Array.isArray(data.rezervace)
-    ? [...data.rezervace]
-    : Array.isArray(data.reservations)
-    ? [...data.reservations]
-    : Array.isArray(data.flights)
-    ? [...data.flights]
-    : [];
+  // Extract bookings / reservations (flights, transport, tickets, visas, etc.)
+  const rawBookings: any[] = [];
+
+  const addBookingItem = (item: any, defaultType?: string) => {
+    if (!item) return;
+    if (Array.isArray(item)) {
+      item.forEach((it) => addBookingItem(it, defaultType));
+      return;
+    }
+    if (typeof item === 'number' && defaultType) {
+      rawBookings.push({
+        type: defaultType,
+        title: defaultType === 'flight' ? 'Letenky' : 'Doprava a transfery',
+        price: item,
+      });
+      return;
+    }
+    if (typeof item === 'object') {
+      rawBookings.push({
+        ...item,
+        type: item.type || defaultType || 'other',
+      });
+    }
+  };
+
+  // 1. Generic bookings arrays
+  addBookingItem(data.bookings);
+  addBookingItem(data.rezervace);
+  addBookingItem(data.reservations);
+
+  // 2. Specific flights fields
+  addBookingItem(data.flights, 'flight');
+  addBookingItem(data.flight, 'flight');
+  addBookingItem(data.letenky, 'flight');
+  addBookingItem(data.letenka, 'flight');
+
+  // 3. Specific transport fields
+  addBookingItem(data.transport, 'transport');
+  addBookingItem(data.doprava, 'transport');
+  addBookingItem(data.transfers, 'transport');
+  addBookingItem(data.car, 'transport');
+  addBookingItem(data.auto, 'transport');
+
+  // 4. Nested budget / naklady / costs fields
+  const budgetObj = data.budget || data.rozpocet || data.naklady || data.costs;
+  if (budgetObj && typeof budgetObj === 'object') {
+    addBookingItem(budgetObj.flights || budgetObj.flight || budgetObj.letenky || budgetObj.letenka, 'flight');
+    addBookingItem(budgetObj.transport || budgetObj.doprava || budgetObj.transfers || budgetObj.car || budgetObj.auto, 'transport');
+    addBookingItem(budgetObj.insurance || budgetObj.pojisteni, 'insurance');
+    addBookingItem(budgetObj.visa || budgetObj.viza, 'visa');
+  }
 
   const parsedBookings: ImportedBooking[] = rawBookings.map((b: any, idx: number) => {
     let bType = (b.type || b.typ || 'other').toLowerCase();
     if (bType.includes('let') || bType.includes('flight')) bType = 'flight';
-    else if (bType.includes('hotel') || bType.includes('ubytov')) bType = 'hotel';
-    else if (bType.includes('auto') || bType.includes('car') || bType.includes('transfer')) bType = 'car';
-    else if (bType.includes('vstup') || bType.includes('ticket')) bType = 'ticket';
+    else if (bType.includes('hotel') || bType.includes('ubytov')) bType = 'accommodation';
+    else if (
+      bType.includes('auto') ||
+      bType.includes('car') ||
+      bType.includes('transfer') ||
+      bType.includes('doprav') ||
+      bType.includes('transport') ||
+      bType.includes('driver') ||
+      bType.includes('ridic')
+    )
+      bType = 'transport';
+    else if (bType.includes('vlak') || bType.includes('train')) bType = 'train';
+    else if (bType.includes('vstup') || bType.includes('ticket') || bType.includes('aktivit') || bType.includes('activity'))
+      bType = 'activity';
+    else if (bType.includes('pojist') || bType.includes('insurance')) bType = 'insurance';
+    else if (bType.includes('viz') || bType.includes('visa') || bType.includes('eta')) bType = 'visa';
     else bType = 'other';
+
+    let title = b.title || b.name || b.nazev;
+    if (!title) {
+      if (bType === 'flight') title = 'Letenky';
+      else if (bType === 'transport') title = 'Doprava a transfery';
+      else title = `Rezervace ${idx + 1}`;
+    }
+
+    const priceRaw = b.price !== undefined ? b.price : b.cena !== undefined ? b.cena : b.cost !== undefined ? b.cost : b.cost_est;
+    const priceNum = typeof priceRaw === 'number' ? priceRaw : parseFloat(priceRaw) || 0;
 
     return {
       type: bType,
-      title: b.title || b.name || b.nazev || `Rezervace ${idx + 1}`,
+      title,
       provider: b.provider || b.poskytovatel || b.airline || b.spolecnost,
       confirmation_number: b.confirmation_number || b.kod || b.booking_number || b.ticket_number,
-      price: typeof b.price === 'number' ? b.price : parseFloat(b.price || b.cena || b.cost || b.cost_est) || 0,
+      price: priceNum,
       currency: b.currency || b.mena || 'USD',
       booking_date: b.booking_date || b.date || b.datum,
       notes: b.notes || b.note || b.poznamka || b.details,

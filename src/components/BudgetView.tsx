@@ -15,8 +15,12 @@ import {
   ToggleRight,
   Info,
   ShieldCheck,
+  Edit2,
+  Plus,
+  X,
+  Loader2,
 } from 'lucide-react';
-import { tripsApi } from '../api/client';
+import { tripsApi, bookingsApi } from '../api/client';
 import { calculateTripBudget } from '../utils/budgetCalculator';
 
 interface BudgetViewProps {
@@ -27,6 +31,15 @@ interface BudgetViewProps {
 export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) => {
   const [scenario, setScenario] = useState<'2+1' | 'triple'>(trip.room_scenario || '2+1');
   const [saving, setSaving] = useState(false);
+
+  // Quick edit modals for Flights and Transport
+  const [editingFlightModal, setEditingFlightModal] = useState(false);
+  const [flightPriceInput, setFlightPriceInput] = useState('');
+  const [flightProviderInput, setFlightProviderInput] = useState('');
+
+  const [editingTransportModal, setEditingTransportModal] = useState(false);
+  const [transportPriceInput, setTransportPriceInput] = useState('');
+  const [transportTitleInput, setTransportTitleInput] = useState('');
 
   const budget = calculateTripBudget(trip, scenario);
   const { travelersCount, daysCount, nightsCount, currency } = budget;
@@ -53,6 +66,116 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) =
       if (onTripUpdated) onTripUpdated();
     } catch (err) {
       console.error('Chyba při změně scénáře pokojů:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openFlightEdit = () => {
+    const existingFlight = (trip.bookings || []).find(
+      (b) => (b.type === 'flight' || (b as any).type?.includes('let')) && b.status !== 'cancelled'
+    );
+    setFlightPriceInput(
+      existingFlight?.price !== undefined
+        ? String(existingFlight.price)
+        : budget.totalFlightCost > 0
+        ? String(budget.totalFlightCost)
+        : ''
+    );
+    setFlightProviderInput(existingFlight?.provider || '');
+    setEditingFlightModal(true);
+  };
+
+  const handleSaveFlight = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const priceNum = parseFloat(flightPriceInput);
+    if (isNaN(priceNum) || priceNum < 0) return;
+
+    setSaving(true);
+    try {
+      const existingFlight = (trip.bookings || []).find(
+        (b) => (b.type === 'flight' || (b as any).type?.includes('let')) && b.status !== 'cancelled'
+      );
+      if (existingFlight) {
+        await bookingsApi.update(trip.id, existingFlight.id, {
+          price: priceNum,
+          provider: flightProviderInput.trim() || undefined,
+        });
+      } else {
+        await bookingsApi.create(trip.id, {
+          type: 'flight',
+          title: 'Letenky',
+          price: priceNum,
+          provider: flightProviderInput.trim() || undefined,
+          currency: currency || 'USD',
+        });
+      }
+      setEditingFlightModal(false);
+      if (onTripUpdated) onTripUpdated();
+    } catch (err) {
+      console.error('Chyba při ukládání letenek:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openTransportEdit = () => {
+    const existingTransport = (trip.bookings || []).find(
+      (b) =>
+        (b.type === 'transport' ||
+          b.type === 'car' ||
+          (b as any).type === 'auto' ||
+          (b as any).type === 'transfer' ||
+          (b as any).type?.includes('doprav')) &&
+        b.status !== 'cancelled'
+    );
+    setTransportPriceInput(
+      existingTransport?.price !== undefined
+        ? String(existingTransport.price)
+        : budget.totalTransportCost > 0
+        ? String(budget.totalTransportCost)
+        : ''
+    );
+    setTransportTitleInput(
+      existingTransport?.title || budget.transportServiceName || 'Soukromé auto s řidičem'
+    );
+    setEditingTransportModal(true);
+  };
+
+  const handleSaveTransport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const priceNum = parseFloat(transportPriceInput);
+    if (isNaN(priceNum) || priceNum < 0) return;
+
+    setSaving(true);
+    try {
+      const existingTransport = (trip.bookings || []).find(
+        (b) =>
+          (b.type === 'transport' ||
+            b.type === 'car' ||
+            (b as any).type === 'auto' ||
+            (b as any).type === 'transfer' ||
+            (b as any).type?.includes('doprav')) &&
+          b.status !== 'cancelled'
+      );
+      const title = transportTitleInput.trim() || 'Doprava a transfery';
+      if (existingTransport) {
+        await bookingsApi.update(trip.id, existingTransport.id, {
+          title,
+          price: priceNum,
+        });
+      } else {
+        await bookingsApi.create(trip.id, {
+          type: 'transport',
+          title,
+          price: priceNum,
+          currency: currency || 'USD',
+        });
+      }
+      setEditingTransportModal(false);
+      if (onTripUpdated) onTripUpdated();
+    } catch (err) {
+      console.error('Chyba při ukládání dopravy:', err);
     } finally {
       setSaving(false);
     }
@@ -196,26 +319,51 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) =
         </h3>
 
         <div className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
-          {/* Flights (pokud jsou kalkulovány) */}
-          {(budget.totalFlightCost > 0 || trip.id === 'trip_srilanka_2026') && (
-            <div className="py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 flex items-center justify-center">
-                  <Plane className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 dark:text-white">Letenky</div>
-                  <div className="text-xs text-gray-500">
-                    {budget.hasFlightBookings ? 'Dle potvrzených rezervací' : `Kalkulováno $${budget.flightPerPerson} / osoba`}
-                  </div>
-                </div>
+          {/* Flights */}
+          <div className="py-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 flex items-center justify-center shrink-0">
+                <Plane className="w-4 h-4" />
               </div>
-              <div className="text-right font-bold text-gray-900 dark:text-white">
-                ${budget.totalFlightCost.toLocaleString()}{' '}
-                <span className="text-xs font-normal text-gray-500">(${budget.flightPerPerson}/os.)</span>
+              <div className="min-w-0">
+                <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <span>Letenky</span>
+                  <button
+                    type="button"
+                    onClick={openFlightEdit}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-bold flex items-center gap-0.5 hover:underline"
+                    title="Upravit nebo zadat cenu letenek"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    <span>{budget.totalFlightCost > 0 ? 'Upravit' : 'Zadat'}</span>
+                  </button>
+                </div>
+                <div className="text-xs text-gray-500 truncate">
+                  {budget.totalFlightCost > 0
+                    ? budget.hasFlightBookings
+                      ? 'Dle zadaných letenek v rezervacích'
+                      : `Kalkulováno $${budget.flightPerPerson} / osoba`
+                    : 'Dosud nezadána cena letenek'}
+                </div>
               </div>
             </div>
-          )}
+            <div className="text-right shrink-0">
+              {budget.totalFlightCost > 0 ? (
+                <div className="font-bold text-gray-900 dark:text-white">
+                  ${budget.totalFlightCost.toLocaleString()}{' '}
+                  <span className="text-xs font-normal text-gray-500">(${budget.flightPerPerson}/os.)</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openFlightEdit}
+                  className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-bold transition-colors border border-blue-200 dark:border-blue-800"
+                >
+                  + Zadat letenky
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* Hotels */}
           <div className="py-3 flex items-center justify-between">
@@ -241,27 +389,48 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) =
           </div>
 
           {/* Transport / Driver */}
-          {(budget.totalTransportCost > 0 || trip.id === 'trip_srilanka_2026') && (
-            <div className="py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 flex items-center justify-center">
-                  <Car className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 dark:text-white">
-                    {budget.transportServiceName || 'Doprava a transfery'}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Auto, palivo, přesuny a přeprava
-                  </div>
-                </div>
+          <div className="py-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                <Car className="w-4 h-4" />
               </div>
-              <div className="text-right font-bold text-gray-900 dark:text-white">
-                ${budget.totalTransportCost.toLocaleString()}{' '}
-                <span className="text-xs font-normal text-gray-500">(${budget.transportPerPerson}/os.)</span>
+              <div className="min-w-0">
+                <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <span className="truncate">{budget.transportServiceName || 'Doprava a transfery'}</span>
+                  <button
+                    type="button"
+                    onClick={openTransportEdit}
+                    className="text-xs text-amber-600 hover:text-amber-700 font-bold flex items-center gap-0.5 hover:underline shrink-0"
+                    title="Upravit nebo zadat cenu dopravy"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    <span>{budget.totalTransportCost > 0 ? 'Upravit' : 'Zadat'}</span>
+                  </button>
+                </div>
+                <div className="text-xs text-gray-500 truncate">
+                  {budget.totalTransportCost > 0
+                    ? 'Auto, palivo, transfery a přesuny'
+                    : 'Dosud nezadána cena dopravy'}
+                </div>
               </div>
             </div>
-          )}
+            <div className="text-right shrink-0">
+              {budget.totalTransportCost > 0 ? (
+                <div className="font-bold text-gray-900 dark:text-white">
+                  ${budget.totalTransportCost.toLocaleString()}{' '}
+                  <span className="text-xs font-normal text-gray-500">(${budget.transportPerPerson}/os.)</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openTransportEdit}
+                  className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs font-bold transition-colors border border-amber-200 dark:border-amber-800"
+                >
+                  + Zadat dopravu
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* Entrance Tickets */}
           <div className="py-3 flex items-center justify-between">
@@ -432,6 +601,185 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ trip, onTripUpdated }) =
           ))}
         </div>
       </div>
+
+      {/* Flight Edit Modal */}
+      {editingFlightModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div
+            className="w-full max-w-md bg-white dark:bg-outdoor-dark-card rounded-3xl shadow-2xl border border-stone-200 dark:border-stone-700 p-6 space-y-4 animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-stone-100 dark:border-stone-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 flex items-center justify-center">
+                  <Plane className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-gray-900 dark:text-white">
+                    Kalkulace letenek
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    Pro {travelersCount} {travelersCount === 1 ? 'cestujícího' : 'cestující'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingFlightModal(false)}
+                className="p-1.5 rounded-full hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveFlight} className="space-y-4">
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-stone-700 dark:text-stone-300">
+                  Celková cena letenek za celou skupinu ({currency})
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-stone-400">$</span>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    value={flightPriceInput}
+                    onChange={(e) => setFlightPriceInput(e.target.value)}
+                    placeholder="např. 2550"
+                    className="w-full pl-8 pr-4 py-2.5 bg-stone-50 dark:bg-stone-900 text-sm font-bold rounded-xl border border-stone-200 dark:border-stone-700 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:text-white"
+                  />
+                </div>
+                {flightPriceInput && !isNaN(parseFloat(flightPriceInput)) && (
+                  <div className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold pl-1">
+                    ≈ ${Math.round(parseFloat(flightPriceInput) / travelersCount)} {currency} / osoba
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-stone-700 dark:text-stone-300">
+                  Letecká společnost / poznámka (volitelné)
+                </label>
+                <input
+                  type="text"
+                  value={flightProviderInput}
+                  onChange={(e) => setFlightProviderInput(e.target.value)}
+                  placeholder="např. Emirates, FlyDubai, Qatar Airways..."
+                  className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-900 text-xs rounded-xl border border-stone-200 dark:border-stone-700 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:text-white"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingFlightModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800"
+                >
+                  Zrušit
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                >
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                  <span>Uložit do rozpočtu</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Transport Edit Modal */}
+      {editingTransportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div
+            className="w-full max-w-md bg-white dark:bg-outdoor-dark-card rounded-3xl shadow-2xl border border-stone-200 dark:border-stone-700 p-6 space-y-4 animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-stone-100 dark:border-stone-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 flex items-center justify-center">
+                  <Car className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-gray-900 dark:text-white">
+                    Kalkulace dopravy a transferů
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    Pro {travelersCount} {travelersCount === 1 ? 'cestujícího' : 'cestující'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingTransportModal(false)}
+                className="p-1.5 rounded-full hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTransport} className="space-y-4">
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-stone-700 dark:text-stone-300">
+                  Název dopravy / služby
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={transportTitleInput}
+                  onChange={(e) => setTransportTitleInput(e.target.value)}
+                  placeholder="např. Soukromé auto s řidičem, Pronájem auta..."
+                  className="w-full px-3 py-2 bg-stone-50 dark:bg-stone-900 text-xs rounded-xl border border-stone-200 dark:border-stone-700 focus:ring-2 focus:ring-amber-500 focus:outline-none dark:text-white"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-stone-700 dark:text-stone-300">
+                  Celková cena dopravy za celou skupinu ({currency})
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-stone-400">$</span>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    value={transportPriceInput}
+                    onChange={(e) => setTransportPriceInput(e.target.value)}
+                    placeholder="např. 855"
+                    className="w-full pl-8 pr-4 py-2.5 bg-stone-50 dark:bg-stone-900 text-sm font-bold rounded-xl border border-stone-200 dark:border-stone-700 focus:ring-2 focus:ring-amber-500 focus:outline-none dark:text-white"
+                  />
+                </div>
+                {transportPriceInput && !isNaN(parseFloat(transportPriceInput)) && (
+                  <div className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold pl-1">
+                    ≈ ${Math.round(parseFloat(transportPriceInput) / travelersCount)} {currency} / osoba
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingTransportModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800"
+                >
+                  Zrušit
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                >
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                  <span>Uložit do rozpočtu</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
