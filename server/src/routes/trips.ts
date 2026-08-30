@@ -34,7 +34,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
                (SELECT COUNT(*) FROM pois p WHERE p.trip_id = t.id AND p.is_deleted = 0) as poi_count,
                (SELECT COUNT(*) FROM days d WHERE d.trip_id = t.id) as day_count
         FROM trips t
-        WHERE (t.owner_id = ? OR t.id = 'trip_srilanka_2026') AND t.is_deleted = 0
+        WHERE (t.owner_id = ? OR t.owner_id = 'usr_demo_001') AND t.is_deleted = 0
         ORDER BY t.created_at DESC
       `)
       .all(userId);
@@ -771,6 +771,20 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
     const now = new Date().toISOString();
     db.prepare('UPDATE trips SET is_deleted = 1, updated_at = ? WHERE id = ?').run(now, id);
     return { success: true, id };
+  });
+
+  // Clear all trips history for user (fresh start)
+  fastify.post('/clear-all', async (request, reply) => {
+    const userId = (request.user as any).id;
+    const now = new Date().toISOString();
+
+    db.prepare(`
+      UPDATE trips 
+      SET is_deleted = 1, updated_at = ?
+      WHERE owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026' OR id = 'trip_srilanka_001'
+    `).run(now, userId);
+
+    return { success: true, message: 'Všechny cesty byly úspěšně vymazány.' };
   });
 
   // Create stage in trip

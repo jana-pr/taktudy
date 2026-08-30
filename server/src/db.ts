@@ -334,6 +334,11 @@ function runMigrations() {
     } catch {}
   }
 
+  // User requested clean slate: mark all previous trips as deleted
+  try {
+    db.exec(`UPDATE trips SET is_deleted = 1;`);
+  } catch {}
+
   // Backfill accommodation GPS coordinates based on known location keywords
   const locationCoords: Record<string, [number, number]> = {
     'negombo': [7.2089, 79.8358],
@@ -372,11 +377,8 @@ function seedDemoData() {
     user = { id: userId };
   }
 
-  // Check if Sri Lanka 2026/2027 trip exists
-  const checkTrip = db.prepare('SELECT id FROM trips WHERE id = ?').get('trip_srilanka_2026');
-  if (!checkTrip) {
-    seedSriLanka2026Trip(user.id);
-  }
+  // Demo trip is not auto-seeded on startup so user has a clean fresh start.
+  // seedSriLanka2026Trip can be invoked on demand if user chooses demo template.
 
   // Seed demo bookings if empty
   try {

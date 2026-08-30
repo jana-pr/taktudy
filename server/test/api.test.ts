@@ -20,6 +20,13 @@ describe('Tak tudy! Backend & Security Tests', () => {
 
   it('AC-01: Multiple trips - User owns and can query trips', () => {
     const demoUser = db.prepare('SELECT id FROM users WHERE email = ?').get('demo@taktudy.app') as any;
+    const testTrip = db.prepare('SELECT id FROM trips WHERE id = ?').get('trip_test_01');
+    if (!testTrip) {
+      db.prepare(`
+        INSERT INTO trips (id, owner_id, title, motto, status, travelers_count, created_at, updated_at, is_deleted)
+        VALUES ('trip_test_01', ?, 'Testovací cesta', 'Motto', 'planning', 2, datetime('now'), datetime('now'), 0)
+      `).run(demoUser.id);
+    }
     const trips = db.prepare('SELECT * FROM trips WHERE owner_id = ? AND is_deleted = 0').all(demoUser.id);
     expect(trips.length).toBeGreaterThanOrEqual(1);
   });

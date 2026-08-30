@@ -90,7 +90,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Trip Selector Dropdown & "Správa" Menu */}
         <div className="flex-1 min-w-0 max-w-[130px] xs:max-w-[170px] sm:max-w-xs mx-1 sm:mx-2 flex items-center gap-1 sm:gap-1.5">
-          {trips.length > 0 && (
+          {trips.length > 0 ? (
             <select
               value={activeTrip?.id || ''}
               onChange={(e) => {
@@ -106,6 +106,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </option>
               ))}
             </select>
+          ) : (
+            <button
+              type="button"
+              onClick={onOpenNewTrip}
+              className="px-2.5 py-1 sm:py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold text-xs flex items-center gap-1 shrink-0 shadow-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Nová cesta</span>
+            </button>
           )}
 
           {/* "Správa" Dropdown / Modal Menu (export, upravit, nastavit, smazat) */}

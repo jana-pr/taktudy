@@ -135,6 +135,12 @@ export const tripsApi = {
         }
       }
 
+      if (serverTrips.length === 0) {
+        await offlineDb.cachedTrips.clear();
+        await offlineDb.cachedPois.clear();
+        return [];
+      }
+
       // Cache trips locally
       await offlineDb.cachedTrips.bulkPut(serverTrips);
       return serverTrips;
@@ -194,6 +200,13 @@ export const tripsApi = {
     await offlineDb.cachedTrips.delete(id);
     await offlineDb.cachedPois.where('trip_id').equals(id).delete();
     return request(`/trips/${id}`, { method: 'DELETE' });
+  },
+
+  clearAll: async (): Promise<any> => {
+    await offlineDb.cachedTrips.clear();
+    await offlineDb.cachedPois.clear();
+    await offlineDb.outboxMutations.clear();
+    return request('/trips/clear-all', { method: 'POST' });
   },
 
   duplicate: async (id: string): Promise<any> => {

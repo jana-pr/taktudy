@@ -737,9 +737,40 @@ export function App() {
               />
             )}
           </div>
+        ) : activeTab === 'tips' ? (
+          <TipsView
+            activeTrip={null}
+            onNavigateToMap={() => setActiveTab('map')}
+            onTripUpdated={refreshActiveTrip}
+          />
         ) : (
-          <div className="text-center py-20 text-gray-400">
-            Zatím nemáš žádnou cestu. Vytvoř novou cestu.
+          <div className="flex flex-col items-center justify-center py-20 px-4 text-center max-w-md mx-auto animate-fade-in">
+            <div className="w-16 h-16 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/60 flex items-center justify-center mb-4 text-teal-600 dark:text-teal-400 shadow-sm">
+              <Compass className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-extrabold text-gray-900 dark:text-white mb-2">
+              Historie cest je vyčištěna
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-6 max-w-xs">
+              Máte čistý stůl pro plánování. Začněte vytvořením nové cesty nebo vložením připraveného plánu z ChatGPT.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
+              <button
+                type="button"
+                onClick={() => setIsNewTripModalOpen(true)}
+                className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Vytvořit novou cestu</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsNewTripModalOpen(true)}
+                className="px-5 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 font-semibold text-xs transition-all flex items-center justify-center gap-2"
+              >
+                <span>Importovat z ChatGPT</span>
+              </button>
+            </div>
           </div>
         )}
       </main>
