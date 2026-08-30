@@ -83,66 +83,11 @@ export const tripsApi = {
       const serverTrips = await request<Trip[]>('/trips');
       const serverTripIds = new Set(serverTrips.map((t) => t.id));
 
-      // Check if local cache has trips that server is missing (e.g. after Render restart)
-      const localTrips = await offlineDb.cachedTrips.toArray();
-      const missingOnServer = localTrips.filter((lt) => !serverTripIds.has(lt.id));
-
-      if (missingOnServer.length > 0) {
-        console.log(`[TakTudy Auto-Restore] Zjištěno ${missingOnServer.length} lokálních cest chybějících na serveru. Obnovuji...`);
-        let restoredCount = 0;
-        for (const missingTrip of missingOnServer) {
-          if (!missingTrip.title || (missingTrip as any).is_deleted) continue;
-          try {
-            const cachedFull = (await offlineDb.cachedTrips.get(missingTrip.id)) as any;
-            const cachedPois = await offlineDb.cachedPois.where('trip_id').equals(missingTrip.id).toArray();
-            const planPayload = {
-              title: missingTrip.title,
-              motto: missingTrip.motto || '',
-              country_region: missingTrip.country_region || '',
-              travelers_count: missingTrip.travelers_count || 3,
-              primary_transport: missingTrip.primary_transport || '',
-              budget_currency: missingTrip.budget_currency || 'USD',
-              notes: cachedFull?.notes || (missingTrip as any).notes || '',
-              stages: cachedFull?.stages || [],
-              days: cachedFull?.days || [],
-              accommodations: cachedFull?.accommodations || [],
-              bookings: cachedFull?.bookings || [],
-              pois: cachedFull?.pois && cachedFull.pois.length > 0 ? cachedFull.pois : cachedPois,
-            };
-
-            await request('/trips/import', {
-              method: 'POST',
-              body: JSON.stringify({
-                content: JSON.stringify(planPayload),
-                filename: `${missingTrip.title}.json`,
-                createTrip: true,
-              }),
-            });
-            restoredCount++;
-          } catch (e) {
-            console.warn('[TakTudy Auto-Restore] Chyba při obnově cesty:', e);
-          }
-        }
-
-        if (restoredCount > 0) {
-          try {
-            const refreshedServerTrips = await request<Trip[]>('/trips');
-            await offlineDb.cachedTrips.bulkPut(refreshedServerTrips);
-            return refreshedServerTrips;
-          } catch (e) {
-            // keep going with serverTrips
-          }
-        }
+      // Server is authority: sync local cache with server list
+      await offlineDb.cachedTrips.clear();
+      if (serverTrips.length > 0) {
+        await offlineDb.cachedTrips.bulkPut(serverTrips);
       }
-
-      if (serverTrips.length === 0) {
-        await offlineDb.cachedTrips.clear();
-        await offlineDb.cachedPois.clear();
-        return [];
-      }
-
-      // Cache trips locally
-      await offlineDb.cachedTrips.bulkPut(serverTrips);
       return serverTrips;
     } catch (err) {
       // Fallback to offline store
