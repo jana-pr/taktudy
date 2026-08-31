@@ -189,7 +189,11 @@ export function App() {
         setActiveTrip(refreshed);
       } else if (tripsData.length > 0) {
         const savedTripId = localStorage.getItem('taktudy_active_trip_id');
-        const preferred = (savedTripId && tripsData.find((t) => t.id === savedTripId)) || tripsData[0];
+        const preferred =
+          (savedTripId && tripsData.find((t) => t.id === savedTripId)) ||
+          tripsData.find((t) => t.id === 'trip_srilanka_2026') ||
+          tripsData.find((t) => (t.day_count ?? 0) > 1) ||
+          tripsData[0];
         const full = await tripsApi.get(preferred.id);
         setActiveTrip(full);
       }
@@ -279,7 +283,11 @@ export function App() {
 
       if (tripsData.length > 0) {
         const savedTripId = localStorage.getItem('taktudy_active_trip_id');
-        const preferred = (savedTripId && tripsData.find((t) => t.id === savedTripId)) || tripsData[0];
+        const preferred =
+          (savedTripId && tripsData.find((t) => t.id === savedTripId)) ||
+          tripsData.find((t) => t.id === 'trip_srilanka_2026') ||
+          tripsData.find((t) => (t.day_count ?? 0) > 1) ||
+          tripsData[0];
         const full = await tripsApi.get(preferred.id);
         setActiveTrip(full);
       }

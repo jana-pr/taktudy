@@ -351,8 +351,29 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       </div>
 
       {/* Vertical Timeline of Day Cards */}
-      <div className="space-y-4 relative before:absolute before:inset-0 before:left-4 sm:before:left-6 before:w-0.5 before:bg-teal-200 dark:before:bg-teal-900/50">
-        {days.map((day) => {
+      {days.length === 0 ? (
+        <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 text-center border border-gray-100 dark:border-gray-700 shadow-sm space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400 mx-auto flex items-center justify-center">
+            <Compass className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-gray-900 dark:text-white">
+            Zatím nebyl naplánován žádný den
+          </h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+            Tato cesta zatím nemá rozpis po jednotlivých dnech. Přejděte do Itineráře a přidejte svůj první den nebo vložte plán z ChatGPT.
+          </p>
+          <button
+            type="button"
+            onClick={() => onSelectDay('')}
+            className="px-4 py-2 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white rounded-xl text-xs font-bold transition-all shadow-xs inline-flex items-center gap-1.5"
+          >
+            <span>Přejít do Itineráře</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4 relative before:absolute before:inset-0 before:left-4 sm:before:left-6 before:w-0.5 before:bg-teal-200 dark:before:bg-teal-900/50">
+          {days.map((day) => {
           const dayPois = pois.filter((p) => p.day_id === day.id);
           const dayHotel = accommodations.find((a) => a.day_id === day.id);
 
@@ -525,7 +546,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

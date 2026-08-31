@@ -281,7 +281,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
     const trip = db
       .prepare(`
         SELECT * FROM trips 
-        WHERE id = ? AND (owner_id = ? OR id = 'trip_srilanka_2026') AND is_deleted = 0
+        WHERE id = ? AND (owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026') AND is_deleted = 0
       `)
       .get(id, userId) as any;
 
@@ -1085,5 +1085,91 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
     db.prepare('DELETE FROM stages WHERE id = ? AND trip_id = ?').run(stageId, id);
 
     return { success: true, stageId };
+  });
+
+  // Create day in trip
+  fastify.post('/:id/days', async (request, reply) => {
+    const userId = (request.user as any).id;
+    const { id } = request.params as { id: string };
+    const {
+      title,
+      notes,
+      specific_date,
+      start_location,
+      overnight_location,
+      distance_km = 0,
+      transport_mode = 'Auto',
+      transit_time_est,
+    } = request.body as {
+      title: string;
+      notes?: string;
+      specific_date?: string;
+      start_location?: string;
+      overnight_location?: string;
+      distance_km?: number;
+      transport_mode?: string;
+      transit_time_est?: string;
+    };
+
+    if (!title || !title.trim()) {
+      return reply.status(400).send({ error: 'Název dne je povinný.' });
+    }
+
+    const trip = db.prepare(`SELECT id FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026')`).get(id, userId);
+    if (!trip) {
+      return reply.status(404).send({ error: 'Cesta nebyla nalezena.' });
+    }
+
+    const maxDayNumber = (
+      db.prepare('SELECT COALESCE(MAX(day_number), 0) as max_num FROM days WHERE trip_id = ?').get(id) as any
+    ).max_num;
+
+    const dayId = `day_${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
+
+    db.prepare(`
+      INSERT INTO days (
+        id, trip_id, day_number, specific_date, title, notes,
+        start_location, overnight_location, transit_time_est, distance_km, transport_mode,
+        has_detail, version, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
+    `).run(
+      dayId,
+      id,
+      maxDayNumber + 1,
+      specific_date || null,
+      title.trim(),
+      notes || null,
+      start_location || null,
+      overnight_location || null,
+      transit_time_est || null,
+      distance_km || 0,
+      transport_mode || 'Auto',
+      now,
+      now
+    );
+
+    const createdDay = db.prepare('SELECT * FROM days WHERE id = ?').get(dayId) as any;
+    saveTripsBackupToJson();
+    return { ...createdDay, has_detail: Boolean(createdDay.has_detail) };
+  });
+
+  // Delete day from trip
+  fastify.delete('/:id/days/:dayId', async (request, reply) => {
+    const userId = (request.user as any).id;
+    const { id, dayId } = request.params as { id: string; dayId: string };
+
+    const trip = db.prepare(`SELECT id FROM trips WHERE id = ? AND (owner_id = ? OR owner_id = 'usr_demo_001' OR id = 'trip_srilanka_2026')`).get(id, userId);
+    if (!trip) {
+      return reply.status(404).send({ error: 'Cesta nebyla nalezena.' });
+    }
+
+    // Unassign POIs and accommodations that were linked to this day
+    db.prepare('UPDATE pois SET day_id = NULL WHERE day_id = ? AND trip_id = ?').run(dayId, id);
+    db.prepare('UPDATE accommodations SET day_id = NULL WHERE day_id = ? AND trip_id = ?').run(dayId, id);
+    db.prepare('DELETE FROM days WHERE id = ? AND trip_id = ?').run(dayId, id);
+
+    saveTripsBackupToJson();
+    return { success: true, dayId };
   });
 };

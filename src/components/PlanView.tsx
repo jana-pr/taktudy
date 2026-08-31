@@ -24,6 +24,12 @@ import {
   ChevronDown,
   Bed,
   CloudSun,
+  CalendarPlus,
+  Trash2,
+  Calendar,
+  FileText,
+  Inbox,
+  X,
 } from 'lucide-react';
 import { tripsApi } from '../api/client';
 
@@ -145,8 +151,64 @@ export const PlanView: React.FC<PlanViewProps> = ({
       ? `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${waypoints}&travelmode=driving`
       : `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
 
-    window.open(url, '_blank');
   };
+
+  // Add Day modal / inline form state
+  const [isAddDayOpen, setIsAddDayOpen] = useState(false);
+  const [newDayTitle, setNewDayTitle] = useState('');
+  const [newDayDate, setNewDayDate] = useState('');
+  const [newDayStart, setNewDayStart] = useState('');
+  const [newDayOvernight, setNewDayOvernight] = useState('');
+  const [newDayDistance, setNewDayDistance] = useState('');
+  const [newDayTransit, setNewDayTransit] = useState('');
+  const [newDayNotes, setNewDayNotes] = useState('');
+  const [isAddingDay, setIsAddingDay] = useState(false);
+
+  const handleCreateDay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDayTitle.trim()) return;
+
+    setIsAddingDay(true);
+    try {
+      await tripsApi.addDay(trip.id, {
+        title: newDayTitle.trim(),
+        specific_date: newDayDate.trim() || undefined,
+        start_location: newDayStart.trim() || undefined,
+        overnight_location: newDayOvernight.trim() || undefined,
+        distance_km: newDayDistance ? Number(newDayDistance) : 0,
+        transit_time_est: newDayTransit.trim() || undefined,
+        notes: newDayNotes.trim() || undefined,
+      });
+      setNewDayTitle('');
+      setNewDayDate('');
+      setNewDayStart('');
+      setNewDayOvernight('');
+      setNewDayDistance('');
+      setNewDayTransit('');
+      setNewDayNotes('');
+      setIsAddDayOpen(false);
+      if (onTripUpdated) onTripUpdated();
+    } catch (err) {
+      console.error('Chyba při vytváření dne:', err);
+    } finally {
+      setIsAddingDay(false);
+    }
+  };
+
+  const handleDeleteDay = async (dayId: string, dayNum: number) => {
+    if (!window.confirm(`Opravdu chcete smazat Den ${dayNum}? Body zájmu z tohoto dne zůstanou zachovány v nezařazených bodech.`)) {
+      return;
+    }
+    try {
+      await tripsApi.deleteDay(trip.id, dayId);
+      if (onTripUpdated) onTripUpdated();
+    } catch (err) {
+      console.error('Chyba při mazání dne:', err);
+    }
+  };
+
+  // Unassigned POIs
+  const unassignedPois = pois.filter((p) => !p.day_id || !days.some((d) => d.id === p.day_id));
 
   return (
     <div className="space-y-4 pb-24 max-w-5xl mx-auto w-full max-w-full overflow-x-hidden">
@@ -171,6 +233,13 @@ export const PlanView: React.FC<PlanViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <button
+              onClick={() => setIsAddDayOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-teal-50 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/60 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs active:scale-95"
+            >
+              <CalendarPlus className="w-3.5 h-3.5" />
+              <span>+ Přidat den</span>
+            </button>
             {onOpenQuickAdd && (
               <button
                 onClick={onOpenQuickAdd}
@@ -183,6 +252,271 @@ export const PlanView: React.FC<PlanViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Add Day Modal / Form */}
+      {isAddDayOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-5 space-y-4 border border-gray-100 dark:border-gray-700 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-700">
+              <div className="flex items-center gap-2">
+                <CalendarPlus className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                <h2 className="text-base font-bold text-gray-900 dark:text-white">
+                  Přidat den do itineráře
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddDayOpen(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateDay} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Název dne / Program *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="např. Výstup na Sigiriya & Minneriya Safari"
+                  value={newDayTitle}
+                  onChange={(e) => setNewDayTitle(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Datum (volitelné)
+                </label>
+                <input
+                  type="date"
+                  value={newDayDate}
+                  onChange={(e) => setNewDayDate(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Výchozí místo
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="např. Kandy"
+                    value={newDayStart}
+                    onChange={(e) => setNewDayStart(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Cíl / Nocleh
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="např. Sigiriya"
+                    value={newDayOvernight}
+                    onChange={(e) => setNewDayOvernight(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Vzdálenost (km)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="km"
+                    value={newDayDistance}
+                    onChange={(e) => setNewDayDistance(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Odhad času přesunu
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="např. 2h 30m"
+                    value={newDayTransit}
+                    onChange={(e) => setNewDayTransit(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Poznámky k programu dne
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Detaily, doporučení, tipy..."
+                  value={newDayNotes}
+                  onChange={(e) => setNewDayNotes(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => setIsAddDayOpen(false)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  Zrušit
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAddingDay || !newDayTitle.trim()}
+                  className="px-4 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-xs font-bold transition-all shadow-xs"
+                >
+                  {isAddingDay ? 'Ukládám...' : 'Vytvořit den'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Unassigned POIs Section (prominently shown if any POIs lack day_id) */}
+      {unassignedPois.length > 0 && (
+        <div className="bg-amber-50/80 dark:bg-amber-950/30 border-2 border-amber-200/80 dark:border-amber-800/60 rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-amber-200/60 dark:border-amber-800/40">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                <Inbox className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base text-stone-900 dark:text-amber-100">
+                  Místa k zařazení do denního plánu ({unassignedPois.length})
+                </h3>
+                <p className="text-xs text-stone-600 dark:text-stone-300">
+                  Tyto body zatím nemají přiřazený konkrétní den. Kliknutím na tlačítko je zařadíte do itineráře.
+                </p>
+              </div>
+            </div>
+            {days.length === 0 && (
+              <button
+                type="button"
+                onClick={() => setIsAddDayOpen(true)}
+                className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all self-start sm:self-auto shadow-xs"
+              >
+                <CalendarPlus className="w-3.5 h-3.5" />
+                <span>Vytvořit první den</span>
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {unassignedPois.map((poi) => (
+              <div
+                key={poi.id}
+                onClick={() => onSelectPoi(poi)}
+                className="bg-white dark:bg-stone-800 rounded-2xl p-3.5 border border-stone-200 dark:border-stone-700 shadow-xs hover:border-amber-400 dark:hover:border-amber-500 transition-all cursor-pointer flex flex-col justify-between gap-3"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 bg-amber-100/70 dark:bg-amber-900/40 px-2 py-0.5 rounded-md">
+                      Nezařazeno
+                    </span>
+                    {poi.is_top && (
+                      <span className="text-[10px] bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 font-black px-1.5 py-0.5 rounded-md">
+                        ★ TOP
+                      </span>
+                    )}
+                  </div>
+                  <h4 className="font-bold text-stone-900 dark:text-stone-100 text-sm mt-1.5 line-clamp-1">
+                    {poi.name}
+                  </h4>
+                  {poi.description && (
+                    <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 line-clamp-2">
+                      {poi.description}
+                    </p>
+                  )}
+                </div>
+
+                {/* Day assignment controls */}
+                <div className="pt-2 border-t border-stone-100 dark:border-stone-700/60" onClick={(e) => e.stopPropagation()}>
+                  {days.length > 0 ? (
+                    <div>
+                      <span className="text-[11px] font-semibold text-stone-500 dark:text-stone-400 block mb-1.5">
+                        Zařadit do dne:
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {days.map((d) => (
+                          <button
+                            key={d.id}
+                            type="button"
+                            onClick={() => handleMovePoiDay(poi.id, d.id)}
+                            className="px-2 py-1 bg-stone-100 hover:bg-teal-600 hover:text-white dark:bg-stone-700 dark:hover:bg-teal-600 text-stone-700 dark:text-stone-200 rounded-lg text-xs font-semibold transition-colors"
+                          >
+                            Den {d.day_number}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddDayOpen(true)}
+                      className="w-full py-1 px-2 text-center text-xs font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 rounded-lg hover:bg-teal-100"
+                    >
+                      + Nejprve vytvořte den
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty Days State */}
+      {days.length === 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 sm:p-10 text-center border border-gray-100 dark:border-gray-700 shadow-sm space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-teal-50 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400 mx-auto flex items-center justify-center shadow-xs">
+            <Calendar className="w-7 h-7" />
+          </div>
+          <div>
+            <h3 className="text-lg font-extrabold text-gray-900 dark:text-white">
+              Zatím nemáte vytvořený žádný den v itineráři
+            </h3>
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto mt-1">
+              Rozvrhněte si cestu po jednotlivých dnech. Do každého dne můžete přiřadit navštívená místa, trasu, ubytování i odhady přesunů.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsAddDayOpen(true)}
+              className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-95 text-white text-xs font-bold flex items-center gap-2 transition-all shadow-sm"
+            >
+              <CalendarPlus className="w-4 h-4" />
+              <span>+ Přidat první den</span>
+            </button>
+            {onOpenEditTrip && (
+              <button
+                type="button"
+                onClick={onOpenEditTrip}
+                className="px-4 py-2.5 rounded-xl bg-stone-100 dark:bg-stone-700 hover:bg-stone-200 dark:hover:bg-stone-600 text-stone-700 dark:text-stone-200 text-xs font-bold transition-all"
+              >
+                Upravit detaily cesty
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Days Loop */}
       <div className="space-y-6">
@@ -254,6 +588,14 @@ export const PlanView: React.FC<PlanViewProps> = ({
                   >
                     <Navigation className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
                     <span>Otevřít trasu v Google Maps</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteDay(day.id, day.day_number)}
+                    className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-all"
+                    title={`Smazat Den ${day.day_number}`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -529,6 +871,20 @@ export const PlanView: React.FC<PlanViewProps> = ({
           );
         })}
       </div>
+
+      {/* Add another day button at bottom */}
+      {days.length > 0 && (
+        <div className="pt-2 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setIsAddDayOpen(true)}
+            className="px-5 py-2.5 rounded-2xl bg-white dark:bg-gray-800 hover:bg-teal-50 dark:hover:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-2 border-dashed border-teal-300 dark:border-teal-700 font-bold text-xs flex items-center gap-2 transition-all shadow-xs active:scale-95"
+          >
+            <CalendarPlus className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+            <span>+ Přidat další den (Den {days.length + 1})</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

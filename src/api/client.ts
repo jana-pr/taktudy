@@ -212,6 +212,29 @@ export const tripsApi = {
     return request(`/trips/${tripId}/stages/${stageId}`, { method: 'DELETE' });
   },
 
+  addDay: async (
+    tripId: string,
+    data: {
+      title: string;
+      notes?: string;
+      specific_date?: string;
+      start_location?: string;
+      overnight_location?: string;
+      distance_km?: number;
+      transport_mode?: string;
+      transit_time_est?: string;
+    }
+  ): Promise<any> => {
+    return request(`/trips/${tripId}/days`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteDay: async (tripId: string, dayId: string): Promise<any> => {
+    return request(`/trips/${tripId}/days/${dayId}`, { method: 'DELETE' });
+  },
+
   aiPropose: async (prompt: string): Promise<any> => {
     return request('/trips/ai-propose', {
       method: 'POST',
