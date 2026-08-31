@@ -1543,6 +1543,17 @@ export function saveTripsBackupToJson() {
     const bookings = db.prepare('SELECT * FROM bookings').all();
     const reminders = db.prepare('SELECT * FROM reminders').all();
 
+    // Protection: If trips is 0, do not wipe an existing non-empty backup file
+    if (trips.length === 0 && fs.existsSync(BACKUP_FILE)) {
+      try {
+        const existing = JSON.parse(fs.readFileSync(BACKUP_FILE, 'utf-8'));
+        if (Array.isArray(existing.trips) && existing.trips.length > 0) {
+          console.log('🛡️ Ochrana zálohy: ignorován pokus o vyprázdnění trips-backup.json.');
+          return;
+        }
+      } catch {}
+    }
+
     const data = { trips, pois, days, accommodations, bookings, reminders, savedAt: new Date().toISOString() };
     fs.writeFileSync(BACKUP_FILE, JSON.stringify(data, null, 2), 'utf-8');
   } catch (err) {
@@ -1586,6 +1597,13 @@ export function restoreTripsFromBackupJson() {
           t.created_at || new Date().toISOString(),
           t.updated_at || new Date().toISOString()
         );
+      } else {
+        // Ensure trip from backup is active (not soft deleted)
+        db.prepare('UPDATE trips SET is_deleted = 0, start_date = COALESCE(start_date, ?), end_date = COALESCE(end_date, ?) WHERE id = ?').run(
+          t.start_date || null,
+          t.end_date || null,
+          t.id
+        );
       }
     }
 
@@ -1608,30 +1626,35 @@ export function restoreTripsFromBackupJson() {
 
     if (Array.isArray(data.pois)) {
       for (const p of data.pois) {
-        db.prepare(`
-          INSERT OR IGNORE INTO pois (
-            id, trip_id, day_id, category_id, name, is_top, lat, lng,
-            description, private_notes, opening_hours, source_url,
-            time_mode, target_time, visit_status, main_photo_url,
-            why_visit, recommended_duration, cost_est, cost_category,
-            is_mandatory, is_enabled, sort_order, version, is_deleted, created_at, updated_at
-          ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?,
-            ?, ?, ?, ?,
-            ?, ?, ?, ?,
-            ?, ?, ?, 1, 0, ?, ?
-          )
-        `).run(
-          p.id, p.trip_id, p.day_id || null, p.category_id || 'other', p.name || 'Bod zájmu',
-          p.is_top ? 1 : 0, p.lat !== undefined ? Number(p.lat) : 0, p.lng !== undefined ? Number(p.lng) : 0,
-          p.description || null, p.private_notes || null, p.opening_hours || null, p.source_url || null,
-          p.time_mode || 'none', p.target_time || null, p.visit_status || 'unvisited', p.main_photo_url || null,
-          p.why_visit || null, p.recommended_duration || null, p.cost_est !== undefined ? Number(p.cost_est) : 0,
-          p.cost_category || 'activities', p.is_mandatory !== undefined ? (p.is_mandatory ? 1 : 0) : 1,
-          p.is_enabled !== undefined ? (p.is_enabled ? 1 : 0) : 1, p.sort_order || 1,
-          p.created_at || new Date().toISOString(), p.updated_at || new Date().toISOString()
-        );
+        const existing = db.prepare('SELECT id FROM pois WHERE id = ?').get(p.id);
+        if (!existing) {
+          db.prepare(`
+            INSERT OR IGNORE INTO pois (
+              id, trip_id, day_id, category_id, name, is_top, lat, lng,
+              description, private_notes, opening_hours, source_url,
+              time_mode, target_time, visit_status, main_photo_url,
+              why_visit, recommended_duration, cost_est, cost_category,
+              is_mandatory, is_enabled, sort_order, version, is_deleted, created_at, updated_at
+            ) VALUES (
+              ?, ?, ?, ?, ?, ?, ?, ?,
+              ?, ?, ?, ?,
+              ?, ?, ?, ?,
+              ?, ?, ?, ?,
+              ?, ?, ?, 1, 0, ?, ?
+            )
+          `).run(
+            p.id, p.trip_id, p.day_id || null, p.category_id || 'other', p.name || 'Bod zájmu',
+            p.is_top ? 1 : 0, p.lat !== undefined ? Number(p.lat) : 0, p.lng !== undefined ? Number(p.lng) : 0,
+            p.description || null, p.private_notes || null, p.opening_hours || null, p.source_url || null,
+            p.time_mode || 'none', p.target_time || null, p.visit_status || 'unvisited', p.main_photo_url || null,
+            p.why_visit || null, p.recommended_duration || null, p.cost_est !== undefined ? Number(p.cost_est) : 0,
+            p.cost_category || 'activities', p.is_mandatory !== undefined ? (p.is_mandatory ? 1 : 0) : 1,
+            p.is_enabled !== undefined ? (p.is_enabled ? 1 : 0) : 1, p.sort_order || 1,
+            p.created_at || new Date().toISOString(), p.updated_at || new Date().toISOString()
+          );
+        } else {
+          db.prepare('UPDATE pois SET is_deleted = 0 WHERE id = ?').run(p.id);
+        }
       }
     }
 
@@ -1682,6 +1705,11 @@ export function restoreTripsFromBackupJson() {
         );
       }
     }
+
+    // Safeguard: Ensure any trips with POIs are active
+    try {
+      db.exec('UPDATE trips SET is_deleted = 0 WHERE id IN (SELECT DISTINCT trip_id FROM pois WHERE is_deleted = 0);');
+    } catch {}
   } catch (err) {
     console.warn('Nelze obnovit trasy ze záložního JSONu:', err);
   }
