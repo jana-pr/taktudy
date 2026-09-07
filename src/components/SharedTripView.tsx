@@ -85,8 +85,15 @@ export const SharedTripView: React.FC<SharedTripViewProps> = ({ shareToken, onEx
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-outdoor-teal-dark via-teal-900 to-stone-900 p-6 text-center text-white">
         <div className="max-w-md w-full bg-white/10 backdrop-blur-md border border-white/20 p-8 rounded-3xl shadow-2xl space-y-6 animate-fade-in">
-          <div className="w-16 h-16 rounded-2xl bg-outdoor-coral mx-auto flex items-center justify-center text-white shadow-lg">
-            <Compass className="w-9 h-9" />
+          <div className="w-16 h-16 rounded-2xl mx-auto overflow-hidden shadow-lg flex items-center justify-center bg-outdoor-teal-dark">
+            <img
+              src="/logo.svg"
+              alt="Tak Tudy!"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = '/logo.png';
+              }}
+            />
           </div>
 
           <div className="space-y-2">

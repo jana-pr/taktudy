@@ -42,8 +42,8 @@ export const MobileAppModal: React.FC<MobileAppModalProps> = ({ isOpen, onClose 
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 flex items-center justify-center">
-              <Smartphone className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl overflow-hidden shadow-xs flex items-center justify-center bg-outdoor-teal-dark shrink-0">
+              <img src="/logo.svg" alt="Tak Tudy!" className="w-full h-full object-cover" />
             </div>
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">

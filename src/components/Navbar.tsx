@@ -87,8 +87,15 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto px-2.5 sm:px-6 h-13 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-2">
         {/* Logo & Name: "Tak Tudy!" */}
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-outdoor-teal-dark flex items-center justify-center text-white shadow-xs shrink-0">
-            <Compass className="w-5 h-5 sm:w-6 sm:h-6 text-outdoor-coral" />
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl overflow-hidden shadow-xs shrink-0 flex items-center justify-center bg-outdoor-teal-dark">
+            <img
+              src="/logo.svg"
+              alt="Tak Tudy!"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = '/logo.png';
+              }}
+            />
           </div>
           <div className="min-w-0">
             <span className="font-heading font-extrabold text-sm sm:text-xl tracking-tight text-outdoor-teal-dark dark:text-white hidden min-[400px]:inline">

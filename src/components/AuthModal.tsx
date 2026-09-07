@@ -57,8 +57,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, onAuthSuccess }
       <div className="w-full max-w-md bg-white dark:bg-outdoor-dark-card rounded-3xl shadow-xl border border-stone-200 dark:border-stone-800 p-6 sm:p-8 space-y-6">
         {/* Logo & Headline */}
         <div className="text-center space-y-2">
-          <div className="w-14 h-14 rounded-2xl bg-outdoor-teal-dark mx-auto flex items-center justify-center text-white shadow-md">
-            <Compass className="w-8 h-8 text-outdoor-coral" />
+          <div className="w-16 h-16 rounded-2xl mx-auto overflow-hidden shadow-md flex items-center justify-center bg-outdoor-teal-dark">
+            <img
+              src="/logo.svg"
+              alt="Tak Tudy!"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = '/logo.png';
+              }}
+            />
           </div>
           <h1 className="font-heading font-black text-2xl sm:text-3xl text-outdoor-teal-dark dark:text-white">
             Tak Tudy!

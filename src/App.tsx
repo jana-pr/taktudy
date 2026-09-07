@@ -866,8 +866,8 @@ export function App() {
           />
         ) : (
           <div className="flex flex-col items-center justify-center py-20 px-4 text-center max-w-md mx-auto animate-fade-in">
-            <div className="w-16 h-16 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/60 flex items-center justify-center mb-4 text-teal-600 dark:text-teal-400 shadow-sm">
-              <Compass className="w-8 h-8" />
+            <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-sm mb-4 flex items-center justify-center bg-outdoor-teal-dark">
+              <img src="/logo.svg" alt="Tak Tudy!" className="w-full h-full object-cover" />
             </div>
             <h2 className="text-xl font-extrabold text-gray-900 dark:text-white mb-2">
               Historie cest je vyčištěna
