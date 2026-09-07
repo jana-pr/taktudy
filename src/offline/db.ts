@@ -164,7 +164,7 @@ export class TakTudyDatabase extends Dexie {
   async getFullTrip(id: string): Promise<FullTrip | null> {
     // 1. Try vault first (fastest and most complete)
     const vaultItem = await this.fullTripsVault.get(id);
-    if (vaultItem && vaultItem.data && Array.isArray(vaultItem.data.days) && vaultItem.data.days.length > 0) {
+    if (vaultItem && vaultItem.data && vaultItem.data.id) {
       return vaultItem.data;
     }
 
@@ -196,22 +196,37 @@ export class TakTudyDatabase extends Dexie {
   }
 
   /**
-   * Get all Full Trips available in local storage
+   * Get all Full Trips available in local storage (merging vault and cached relational tables)
    */
   async getAllFullTrips(): Promise<FullTrip[]> {
     const vaultItems = await this.fullTripsVault.toArray();
-    if (vaultItems.length > 0) {
-      return vaultItems.map((v) => v.data);
+    const tripMap = new Map<string, FullTrip>();
+
+    for (const v of vaultItems) {
+      if (v && v.data && v.data.id && !tripMap.has(v.data.id)) {
+        tripMap.set(v.data.id, v.data);
+      }
     }
 
-    // Fallback: iterate cachedTrips
+    // Fallback: merge any trips from cachedTrips not yet in vaultMap
     const trips = await this.cachedTrips.toArray();
-    const result: FullTrip[] = [];
     for (const t of trips) {
-      const full = await this.getFullTrip(t.id);
-      if (full) result.push(full);
+      if (t && t.id && !tripMap.has(t.id)) {
+        const full = await this.getFullTrip(t.id);
+        if (full) {
+          tripMap.set(t.id, full);
+          // Cache into vault for faster subsequent lookups
+          this.fullTripsVault.put({
+            id: full.id,
+            title: full.title,
+            data: full,
+            updated_at: full.updated_at || new Date().toISOString(),
+          }).catch(() => {});
+        }
+      }
     }
-    return result;
+
+    return Array.from(tripMap.values());
   }
 
   /**

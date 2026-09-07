@@ -191,11 +191,11 @@ export function App() {
         const savedTripId = localStorage.getItem('taktudy_active_trip_id');
         const preferred =
           (savedTripId && tripsData.find((t) => t.id === savedTripId)) ||
-          tripsData.find((t) => t.id === 'trip_srilanka_2026') ||
-          tripsData.find((t) => (t.day_count ?? 0) > 1) ||
           tripsData[0];
-        const full = await tripsApi.get(preferred.id);
-        setActiveTrip(full);
+        try {
+          const full = await tripsApi.get(preferred.id);
+          setActiveTrip(full);
+        } catch {}
       }
 
       // 4. Fetch fresh categories and tips
@@ -285,11 +285,23 @@ export function App() {
         const savedTripId = localStorage.getItem('taktudy_active_trip_id');
         const preferred =
           (savedTripId && tripsData.find((t) => t.id === savedTripId)) ||
-          tripsData.find((t) => t.id === 'trip_srilanka_2026') ||
-          tripsData.find((t) => (t.day_count ?? 0) > 1) ||
           tripsData[0];
-        const full = await tripsApi.get(preferred.id);
-        setActiveTrip(full);
+        try {
+          const full = await tripsApi.get(preferred.id);
+          setActiveTrip(full);
+        } catch {
+          const fallback: FullTrip = {
+            ...preferred,
+            stages: [],
+            days: [],
+            subRoutes: [],
+            pois: [],
+            accommodations: [],
+            bookings: [],
+            reminders: [],
+          };
+          setActiveTrip(fallback);
+        }
       }
     } catch (err) {
       console.error('Chyba načítání dat:', err);
@@ -336,11 +348,23 @@ export function App() {
   const handleSelectTrip = async (trip: Trip) => {
     try {
       setLoading(true);
+      localStorage.setItem('taktudy_active_trip_id', trip.id);
       const full = await tripsApi.get(trip.id);
       setActiveTrip(full);
-      localStorage.setItem('taktudy_active_trip_id', trip.id);
     } catch (err) {
       console.error('Chyba při načítání cesty:', err);
+      // Fallback: create base FullTrip so user can always view the trip
+      const fallback: FullTrip = {
+        ...trip,
+        stages: [],
+        days: [],
+        subRoutes: [],
+        pois: [],
+        accommodations: [],
+        bookings: [],
+        reminders: [],
+      };
+      setActiveTrip(fallback);
     } finally {
       setLoading(false);
     }

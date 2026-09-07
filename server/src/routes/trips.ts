@@ -22,6 +22,16 @@ const CreateTripSchema = z.object({
 
 const UpdateTripSchema = CreateTripSchema.partial();
 
+function safeJsonParse<T>(val: any, fallback: T): T {
+  if (val === null || val === undefined) return fallback;
+  if (typeof val === 'object') return val as T;
+  try {
+    return JSON.parse(val);
+  } catch {
+    return fallback;
+  }
+}
+
 export const tripRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', fastify.authenticate);
 
@@ -430,7 +440,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
     return trips.map((t: any) => ({
       ...t,
       is_deleted: Boolean(t.is_deleted),
-      bounding_box: t.bounding_box ? JSON.parse(t.bounding_box) : null,
+      bounding_box: safeJsonParse(t.bounding_box, null),
     }));
   });
 
@@ -463,13 +473,13 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
     const subRoutes = db
       .prepare('SELECT * FROM sub_routes WHERE trip_id = ?')
       .all(id)
-      .map((sr: any) => ({ ...sr, coordinates: JSON.parse(sr.coordinates || '[]') }));
+      .map((sr: any) => ({ ...sr, coordinates: safeJsonParse(sr.coordinates, []) }));
 
     const pois = db
       .prepare(`
         SELECT p.*, c.label_cs as category_label, c.icon_name as category_icon, c.default_color as category_color
         FROM pois p
-        JOIN categories c ON p.category_id = c.id
+        LEFT JOIN categories c ON p.category_id = c.id
         WHERE p.trip_id = ? AND p.is_deleted = 0
         ORDER BY p.sort_order ASC
       `)
@@ -480,9 +490,9 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
         is_mandatory: p.is_mandatory === undefined ? true : Boolean(p.is_mandatory),
         is_enabled: p.is_enabled === undefined ? true : Boolean(p.is_enabled),
         is_deleted: Boolean(p.is_deleted),
-        external_links: p.external_links ? JSON.parse(p.external_links) : [],
-        notification_config: p.notification_config ? JSON.parse(p.notification_config) : null,
-        photos: p.photos ? JSON.parse(p.photos) : [],
+        external_links: safeJsonParse(p.external_links, []),
+        notification_config: safeJsonParse(p.notification_config, null),
+        photos: safeJsonParse(p.photos, []),
       }));
 
     const accommodations = db
@@ -513,7 +523,7 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
     return {
       ...trip,
       is_deleted: Boolean(trip.is_deleted),
-      bounding_box: trip.bounding_box ? JSON.parse(trip.bounding_box) : null,
+      bounding_box: safeJsonParse(trip.bounding_box, null),
       stages,
       days,
       subRoutes,

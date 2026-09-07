@@ -179,7 +179,7 @@ export const tripsApi = {
     } catch (err) {
       // Offline / server waking fallback: load full trip from local Dexie & Vault
       const cachedFull = await offlineDb.getFullTrip(id);
-      if (cachedFull && Array.isArray(cachedFull.days) && cachedFull.days.length > 0) {
+      if (cachedFull) {
         // Asynchronously attempt to restore to server if online
         if (navigator.onLine) {
           request('/trips/restore-full', {
@@ -198,6 +198,23 @@ export const tripsApi = {
         }
         return cachedFull;
       }
+
+      // Check header in cachedTrips as secondary fallback
+      const cachedHeader = await offlineDb.cachedTrips.get(id);
+      if (cachedHeader) {
+        const fallbackFull: FullTrip = {
+          ...cachedHeader,
+          stages: [],
+          days: [],
+          subRoutes: [],
+          pois: [],
+          accommodations: [],
+          bookings: [],
+          reminders: [],
+        };
+        return fallbackFull;
+      }
+
       throw err;
     }
   },
