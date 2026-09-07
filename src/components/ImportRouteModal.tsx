@@ -10,18 +10,20 @@ import {
   Loader2,
   ClipboardList,
 } from 'lucide-react';
-import { tripsApi } from '../api/client';
+import { tripsApi, MAX_TRIPS_LIMIT } from '../api/client';
 
 interface ImportRouteModalProps {
   isOpen: boolean;
   onClose: () => void;
   onTripImported: (tripId: string) => void;
+  tripsCount?: number;
 }
 
 export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
   isOpen,
   onClose,
   onTripImported,
+  tripsCount = 0,
 }) => {
   const [tab, setTab] = useState<'upload' | 'paste'>('upload');
   const [pastedText, setPastedText] = useState<string>('');
@@ -30,6 +32,8 @@ export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const isLimitReached = tripsCount >= MAX_TRIPS_LIMIT;
 
   if (!isOpen) return null;
 
@@ -84,6 +88,10 @@ export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
 
   const handleDirectImportPastedText = async () => {
     if (!pastedText.trim()) return;
+    if (isLimitReached) {
+      setError(`Byl dosažen limit ${MAX_TRIPS_LIMIT} tras. Před importem nové cesty prosím promažte staré nebo dokončené cesty.`);
+      return;
+    }
     setError(null);
     setLoading(true);
 
@@ -100,6 +108,10 @@ export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
 
   const handleConfirmImport = async () => {
     if (!fileContent) return;
+    if (isLimitReached) {
+      setError(`Byl dosažen limit ${MAX_TRIPS_LIMIT} tras. Před importem nové cesty prosím promažte staré nebo dokončené cesty.`);
+      return;
+    }
 
     try {
       setLoading(true);
@@ -168,6 +180,13 @@ export const ImportRouteModal: React.FC<ImportRouteModalProps> = ({
               <ClipboardList className="w-3.5 h-3.5" />
               <span>Vložit text z ChatGPT přímo</span>
             </button>
+          </div>
+        )}
+
+        {/* Limit reached warning */}
+        {isLimitReached && (
+          <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-300 font-semibold px-5">
+            ⚠️ <strong>Byl dosažen limit {MAX_TRIPS_LIMIT} tras ({tripsCount} / {MAX_TRIPS_LIMIT}).</strong> Před importem nové cesty prosím promažte v přehledu staré nebo dokončené trasy.
           </div>
         )}
 

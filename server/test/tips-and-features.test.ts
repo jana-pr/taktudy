@@ -288,4 +288,62 @@ Doufám, že se vám nový itinerář bude líbit! Dejte vědět, pokud budete c
     expect(parsed.accommodations!.length).toBeGreaterThanOrEqual(1);
     expect(parsed.accommodations![0].hotel_name).toBe('Cinnamon Grand Colombo');
   });
+
+  it('8. Duplikace místa z cesty do Tipů: zkopíruje POI do tabulky tipů se všemi detaily a POI v cestě zůstává', () => {
+    // 1. Get POI from trip
+    const poi = db.prepare('SELECT * FROM pois WHERE trip_id = ?').get(createdTripId) as any;
+    expect(poi).toBeDefined();
+
+    // 2. Duplicate to tips
+    const tipId = `tip_dup_${Date.now()}`;
+    const now = new Date().toISOString();
+    const notes = [
+      poi.why_visit ? `Proč navštívit: ${poi.why_visit}` : null,
+      poi.description,
+      poi.private_notes ? `Poznámka: ${poi.private_notes}` : null,
+    ].filter(Boolean).join('\n\n');
+
+    db.prepare(`
+      INSERT INTO tips (
+        id, user_id, trip_id, title, category_id, location_name,
+        lat, lng, notes, source_url, photo_url, is_used, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+    `).run(
+      tipId,
+      testUserId,
+      poi.trip_id,
+      poi.name,
+      poi.category_id || 'other',
+      poi.name,
+      poi.lat,
+      poi.lng,
+      notes || null,
+      poi.source_url || null,
+      poi.main_photo_url || null,
+      now,
+      now
+    );
+
+    // Verify tip was created
+    const createdTip = db.prepare('SELECT * FROM tips WHERE id = ?').get(tipId) as any;
+    expect(createdTip).toBeDefined();
+    expect(createdTip.title).toBe(poi.name);
+    expect(createdTip.category_id).toBe(poi.category_id);
+
+    // Verify POI still exists in original trip
+    const poiStillExists = db.prepare('SELECT * FROM pois WHERE id = ?').get(poi.id);
+    expect(poiStillExists).toBeDefined();
+  });
+
+  it('9. Dokončení cesty: přepnutí stavu cesty na completed a traveling/active', () => {
+    // Update trip to completed
+    db.prepare('UPDATE trips SET status = ? WHERE id = ?').run('completed', createdTripId);
+    let trip = db.prepare('SELECT status FROM trips WHERE id = ?').get(createdTripId) as any;
+    expect(trip.status).toBe('completed');
+
+    // Update trip back to traveling / active
+    db.prepare('UPDATE trips SET status = ? WHERE id = ?').run('active', createdTripId);
+    trip = db.prepare('SELECT status FROM trips WHERE id = ?').get(createdTripId) as any;
+    expect(trip.status).toBe('active');
+  });
 });

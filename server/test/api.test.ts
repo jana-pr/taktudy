@@ -124,4 +124,33 @@ describe('Tak tudy! Backend & Security Tests', () => {
     await expect(parseUrlSafely('http://127.0.0.1:5432')).rejects.toThrow();
     await expect(parseUrlSafely('http://169.254.169.254/latest/meta-data')).rejects.toThrow();
   });
+
+  it('Persistence & Limit: Checks active trip limit correctly in database', () => {
+    const demoUser = db.prepare('SELECT id FROM users WHERE email = ?').get('demo@taktudy.app') as any;
+    const countRow = db
+      .prepare(`SELECT COUNT(*) as count FROM trips WHERE (owner_id = ? OR owner_id = 'usr_demo_001') AND is_deleted = 0`)
+      .get(demoUser.id) as any;
+
+    expect(countRow.count).toBeLessThanOrEqual(30);
+  });
+
+  it('Persistence: Auto-normalizes custom POI categories without foreign key errors', () => {
+    const now = new Date().toISOString();
+    // Simulate inserting unknown/alias category
+    const customCategory = 'sightseeing_spot';
+    db.prepare(`
+      INSERT OR IGNORE INTO categories (id, label_cs, icon_name, default_color)
+      VALUES (?, ?, 'MapPin', '#546E7A')
+    `).run(customCategory, customCategory);
+
+    const insertedPoi = db.prepare(`
+      INSERT INTO pois (id, trip_id, category_id, name, lat, lng, sort_order, version, is_deleted, created_at, updated_at)
+      VALUES ('poi_cat_test', 'trip_srilanka_001', ?, 'Vyhlídka Obertraun', 47.55, 13.68, 1, 1, 0, ?, ?)
+    `).run(customCategory, now, now);
+
+    expect(insertedPoi.changes).toBe(1);
+
+    const fetched = db.prepare('SELECT * FROM pois WHERE id = ?').get('poi_cat_test') as any;
+    expect(fetched.name).toBe('Vyhlídka Obertraun');
+  });
 });

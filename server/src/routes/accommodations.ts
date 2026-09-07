@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify';
-import { db } from '../db.js';
+import { db, saveTripsBackupToJson } from '../db.js';
 import crypto from 'crypto';
 
 export const accommodationsRoutes: FastifyPluginAsync = async (fastify) => {
@@ -65,6 +65,7 @@ export const accommodationsRoutes: FastifyPluginAsync = async (fastify) => {
       now
     );
 
+    saveTripsBackupToJson();
     const created = db.prepare('SELECT * FROM accommodations WHERE id = ?').get(id) as any;
     return { ...created, breakfast_included: Boolean(created.breakfast_included) };
   });
@@ -143,6 +144,7 @@ export const accommodationsRoutes: FastifyPluginAsync = async (fastify) => {
       tripId
     );
 
+    saveTripsBackupToJson();
     const updated = db.prepare('SELECT * FROM accommodations WHERE id = ?').get(id) as any;
     return { ...updated, breakfast_included: Boolean(updated.breakfast_included) };
   });
@@ -153,6 +155,7 @@ export const accommodationsRoutes: FastifyPluginAsync = async (fastify) => {
   }>('/:tripId/accommodations/:id', async (request, reply) => {
     const { tripId, id } = request.params;
     db.prepare('DELETE FROM accommodations WHERE id = ? AND trip_id = ?').run(id, tripId);
+    saveTripsBackupToJson();
     return { success: true };
   });
 };

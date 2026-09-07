@@ -506,6 +506,37 @@ export function App() {
     }
   };
 
+  const handleDuplicatePoiToTips = async (poi: POI): Promise<boolean> => {
+    try {
+      const notesParts: string[] = [];
+      if (poi.why_visit) notesParts.push(`Proč navštívit: ${poi.why_visit}`);
+      if (poi.description) notesParts.push(poi.description);
+      if (poi.private_notes) notesParts.push(`Poznámka: ${poi.private_notes}`);
+      if (poi.opening_hours) notesParts.push(`Otevírací doba: ${poi.opening_hours}`);
+
+      const newTip = await tipsApi.create({
+        title: poi.name,
+        category_id: poi.category_id || 'other',
+        location_name: poi.address || poi.name,
+        lat: poi.lat,
+        lng: poi.lng,
+        notes: notesParts.length > 0 ? notesParts.join('\n\n') : undefined,
+        source_url: poi.source_url || (poi.external_links && poi.external_links[0]?.url) || undefined,
+        photo_url: poi.main_photo_url || (poi.photos && poi.photos[0]) || undefined,
+        trip_id: poi.trip_id || undefined,
+      });
+
+      setTips((prev) => [newTip, ...prev]);
+      setSyncToast(`💡 Místo „${poi.name}“ bylo zkopírováno do Tipů!`);
+      setTimeout(() => setSyncToast(null), 4000);
+      return true;
+    } catch (err: any) {
+      console.error('Chyba při kopírování místa do Tipů:', err);
+      alert(err.message || 'Nepodařilo se zkopírovat místo do Tipů.');
+      return false;
+    }
+  };
+
   const handleAddPoi = async (poiData: Partial<POI>) => {
     if (!activeTrip) return;
     await poiApi.create(activeTrip.id, poiData);
@@ -737,6 +768,7 @@ export function App() {
                 onAddStage={handleAddStage}
                 onMovePoiStage={handleMovePoiStage}
                 onTripUpdated={refreshActiveTrip}
+                onDuplicateToTips={handleDuplicatePoiToTips}
               />
             )}
 
@@ -799,6 +831,7 @@ export function App() {
                   onToggleTop={handleToggleTop}
                   onToggleVisit={handleToggleVisit}
                   onOpenQuickAdd={() => setIsQuickAddOpen(true)}
+                  onDuplicateToTips={handleDuplicatePoiToTips}
                 />
               </div>
             )}
@@ -815,7 +848,7 @@ export function App() {
 
             {activeTab === 'tips' && (
               <TipsView
-                activeTrip={null}
+                activeTrip={activeTrip}
                 onClose={() => setActiveTab('overview')}
                 onNavigateToMap={(lat, lng) => {
                   setActiveTab('map');
@@ -826,7 +859,7 @@ export function App() {
           </div>
         ) : activeTab === 'tips' ? (
           <TipsView
-            activeTrip={null}
+            activeTrip={activeTrip}
             onClose={() => setActiveTab('overview')}
             onNavigateToMap={() => setActiveTab('map')}
             onTripUpdated={refreshActiveTrip}
@@ -878,6 +911,7 @@ export function App() {
         onToggleVisit={handleToggleVisit}
         onDeletePoi={handleDeletePoi}
         onSaveEdit={handleSavePoiEdit}
+        onDuplicateToTips={handleDuplicatePoiToTips}
       />
 
       <NearMeModal
@@ -922,6 +956,7 @@ export function App() {
       <NewTripModal
         isOpen={isNewTripModalOpen}
         onClose={() => setIsNewTripModalOpen(false)}
+        tripsCount={trips.length}
         onCreateTrip={handleCreateTrip}
         onOpenAiPropose={() => setIsAiProposeOpen(true)}
         onOpenImport={() => setIsImportModalOpen(true)}
@@ -962,6 +997,7 @@ export function App() {
         onUpdateTripStatus={handleUpdateTripStatus}
         onDeleteTrip={(id) => handleDeleteTrip(id)}
         onClearAllTrips={handleClearAllTrips}
+        onRefreshData={loadData}
       />
 
       {/* AI Proposal Modal */}
@@ -985,6 +1021,7 @@ export function App() {
       <ImportRouteModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
+        tripsCount={trips.length}
         onTripImported={handleTripCreatedFromAiOrImport}
       />
 

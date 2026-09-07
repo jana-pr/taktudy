@@ -13,9 +13,12 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 
+import { MAX_TRIPS_LIMIT } from '../api/client';
+
 interface NewTripModalProps {
   isOpen: boolean;
   onClose: () => void;
+  tripsCount?: number;
   onCreateTrip: (data: {
     title: string;
     motto?: string;
@@ -33,6 +36,7 @@ interface NewTripModalProps {
 export const NewTripModal: React.FC<NewTripModalProps> = ({
   isOpen,
   onClose,
+  tripsCount = 0,
   onCreateTrip,
   onOpenAiPropose,
   onOpenImport,
@@ -160,14 +164,21 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
             onClick={() => setTab('chatgpt')}
             className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
               tab === 'chatgpt'
-                ? 'border-purple-600 text-purple-700 dark:text-purple-400'
+                ? 'border-teal-600 text-teal-700 dark:text-teal-400'
                 : 'border-transparent text-stone-500 hover:text-stone-800 dark:hover:text-stone-300'
             }`}
           >
-            <Bot className="w-3.5 h-3.5 text-purple-600" />
-            <span>Vložit text / JSON z ChatGPT</span>
+            <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+            <span>Vložit hotový plán z ChatGPT</span>
           </button>
         </div>
+
+        {/* Limit Warning Banner if >= 30 */}
+        {tripsCount >= MAX_TRIPS_LIMIT && (
+          <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-300 font-semibold px-5">
+            ⚠️ <strong>Byl dosažen limit {MAX_TRIPS_LIMIT} tras ({tripsCount} / {MAX_TRIPS_LIMIT}).</strong> Před vytvořením nové cesty prosím promažte v přehledu staré nebo dokončené trasy.
+          </div>
+        )}
 
         {/* Quick Assistant Cards (when in manual mode) */}
         {tab === 'manual' && (

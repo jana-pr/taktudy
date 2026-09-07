@@ -54,6 +54,9 @@ export const TipsView: React.FC<TipsViewProps> = ({
   const [photoUrl, setPhotoUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Available photo presets for the currently selected category
+  const availablePresets = CATEGORY_PHOTO_PRESETS[categoryId] || [];
+
   // Promote state (which tip is currently opening day selection)
   const [promotingTipId, setPromotingTipId] = useState<string | null>(null);
   const [selectedDayId, setSelectedDayId] = useState<string>('');

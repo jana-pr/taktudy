@@ -77,48 +77,95 @@ export const authApi = {
 };
 
 // Trips API
+export const MAX_TRIPS_LIMIT = 30;
+
+// Trips API
 export const tripsApi = {
   list: async (): Promise<Trip[]> => {
+    // 0. Safety: check if fallback in localStorage should be loaded into Dexie
+    try {
+      await offlineDb.loadFallbackFromLocalStorage();
+    } catch {}
+
     try {
       const serverTrips = await request<Trip[]>('/trips');
-      const serverTripIds = new Set(serverTrips.map((t) => t.id));
+      const serverTripMap = new Map<string, Trip>(serverTrips.map((t) => [t.id, t]));
 
-      // Check if user has trips in local IndexedDB that are missing on the server (e.g. after Render restart/deploy)
-      const localCachedTrips = await offlineDb.cachedTrips.toArray();
-      const missingOnServer = localCachedTrips.filter(
-        (lt) => !serverTripIds.has(lt.id) && !lt.is_deleted
-      );
+      // Get all rich full trips currently preserved in client storage
+      const localFullTrips = await offlineDb.getAllFullTrips();
+      const localTripMap = new Map<string, FullTrip>(localFullTrips.map((lt) => [lt.id, lt]));
 
-      for (const localTrip of missingOnServer) {
-        try {
-          const localPois = await offlineDb.cachedPois.where('trip_id').equals(localTrip.id).toArray();
-          await request('/trips/restore-full', {
-            method: 'POST',
-            body: JSON.stringify({
-              trip: localTrip,
-              pois: localPois,
-              days: (localTrip as any).days || [],
-              accommodations: (localTrip as any).accommodations || [],
-              bookings: (localTrip as any).bookings || [],
-            }),
-          });
-          serverTrips.push(localTrip);
-          serverTripIds.add(localTrip.id);
-        } catch (restoreErr) {
-          console.warn('Automatická obnova trasy na server selhala:', restoreErr);
-          serverTrips.push(localTrip);
+      // Detect trips that need automatic restoration to server:
+      // Case A: Trip completely missing on server
+      // Case B: Server has trip but day_count === 0 while local client has > 0 days (e.g. after Render restart)
+      for (const localTrip of localFullTrips) {
+        if (!localTrip || !localTrip.id || (localTrip as any).is_deleted) continue;
+
+        const serverTrip = serverTripMap.get(localTrip.id);
+        const serverNeedsRestore = !serverTrip || ((serverTrip.day_count ?? 0) === 0 && (localTrip.days?.length ?? 0) > 0);
+
+        if (serverNeedsRestore) {
+          try {
+            await request('/trips/restore-full', {
+              method: 'POST',
+              body: JSON.stringify({
+                trip: localTrip,
+                stages: localTrip.stages || [],
+                days: localTrip.days || [],
+                pois: localTrip.pois || [],
+                accommodations: localTrip.accommodations || [],
+                bookings: localTrip.bookings || [],
+                reminders: localTrip.reminders || [],
+                subRoutes: localTrip.subRoutes || [],
+              }),
+            });
+
+            if (!serverTrip) {
+              serverTrips.push(localTrip);
+              serverTripMap.set(localTrip.id, localTrip);
+            } else {
+              // Update server trip day count locally
+              serverTrip.day_count = localTrip.days?.length || 0;
+              serverTrip.poi_count = localTrip.pois?.length || 0;
+            }
+          } catch (restoreErr) {
+            console.warn(`Automatická obnova trasy „${localTrip.title}“ na server selhala:`, restoreErr);
+            if (!serverTrip) {
+              serverTrips.push(localTrip);
+            }
+          }
         }
       }
 
-      // Keep local IndexedDB in sync without destructive wipe
-      if (serverTrips.length > 0) {
-        await offlineDb.cachedTrips.bulkPut(serverTrips);
+      // Merge headers safely without wiping detailed days in Dexie
+      for (const sTrip of serverTrips) {
+        const existingFull = localTripMap.get(sTrip.id);
+        if (existingFull) {
+          // Update header while preserving rich child records
+          const updatedFull: FullTrip = {
+            ...existingFull,
+            ...sTrip,
+            stages: existingFull.stages || [],
+            days: existingFull.days || [],
+            pois: existingFull.pois || [],
+            accommodations: existingFull.accommodations || [],
+            bookings: existingFull.bookings || [],
+            reminders: existingFull.reminders || [],
+          };
+          await offlineDb.saveFullTrip(updatedFull);
+        } else {
+          // If this is a new trip from server we don't have, fetch and save in background
+          tripsApi.get(sTrip.id).catch(() => {});
+        }
       }
+
       return serverTrips;
     } catch (err) {
-      // Offline fallback: return all non-deleted cached trips
+      // Offline fallback: return all trips from local vault
       const cached = await offlineDb.cachedTrips.toArray();
       if (cached.length > 0) return cached.filter((t) => !t.is_deleted);
+      const fulls = await offlineDb.getAllFullTrips();
+      if (fulls.length > 0) return fulls;
       throw err;
     }
   },
@@ -126,24 +173,30 @@ export const tripsApi = {
   get: async (id: string): Promise<FullTrip> => {
     try {
       const trip = await request<FullTrip>(`/trips/${id}`);
-      // Cache locally
-      await offlineDb.cachedTrips.put(trip);
-      await offlineDb.cachedPois.bulkPut(trip.pois);
+      // Save full tree into local Dexie & vault
+      await offlineDb.saveFullTrip(trip);
       return trip;
     } catch (err) {
-      // Offline fallback
-      const cachedTrip = await offlineDb.cachedTrips.get(id);
-      if (cachedTrip) {
-        const cachedPois = await offlineDb.cachedPois.where('trip_id').equals(id).toArray();
-        return {
-          ...cachedTrip,
-          stages: (cachedTrip as any).stages || [],
-          days: (cachedTrip as any).days || [],
-          subRoutes: (cachedTrip as any).subRoutes || [],
-          accommodations: (cachedTrip as any).accommodations || [],
-          bookings: (cachedTrip as any).bookings || [],
-          pois: cachedPois.length > 0 ? cachedPois : (cachedTrip as any).pois || [],
-        } as FullTrip;
+      // Offline / server waking fallback: load full trip from local Dexie & Vault
+      const cachedFull = await offlineDb.getFullTrip(id);
+      if (cachedFull && Array.isArray(cachedFull.days) && cachedFull.days.length > 0) {
+        // Asynchronously attempt to restore to server if online
+        if (navigator.onLine) {
+          request('/trips/restore-full', {
+            method: 'POST',
+            body: JSON.stringify({
+              trip: cachedFull,
+              stages: cachedFull.stages || [],
+              days: cachedFull.days || [],
+              pois: cachedFull.pois || [],
+              accommodations: cachedFull.accommodations || [],
+              bookings: cachedFull.bookings || [],
+              reminders: cachedFull.reminders || [],
+              subRoutes: cachedFull.subRoutes || [],
+            }),
+          }).catch((e) => console.warn('Background restore attempt warning:', e));
+        }
+        return cachedFull;
       }
       throw err;
     }
@@ -154,15 +207,30 @@ export const tripsApi = {
       method: 'POST',
       body: JSON.stringify(data),
     });
-    await offlineDb.cachedTrips.put(created);
+    const fullCreated: FullTrip = {
+      ...created,
+      stages: [],
+      days: [],
+      subRoutes: [],
+      pois: [],
+      accommodations: [],
+      bookings: [],
+      reminders: [],
+    };
+    await offlineDb.saveFullTrip(fullCreated);
     return created;
   },
 
   update: async (id: string, data: Partial<Trip>): Promise<any> => {
-    return request(`/trips/${id}`, {
+    const res = await request(`/trips/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+    const existing = await offlineDb.getFullTrip(id);
+    if (existing) {
+      await offlineDb.saveFullTrip({ ...existing, ...data });
+    }
+    return res;
   },
 
   getAll: async (): Promise<Trip[]> => {
@@ -170,8 +238,7 @@ export const tripsApi = {
   },
 
   delete: async (id: string): Promise<any> => {
-    await offlineDb.cachedTrips.delete(id);
-    await offlineDb.cachedPois.where('trip_id').equals(id).delete();
+    await offlineDb.deleteFullTrip(id);
     try {
       return await request(`/trips/${id}`, { method: 'DELETE' });
     } catch (err: any) {
@@ -183,9 +250,7 @@ export const tripsApi = {
   },
 
   clearAll: async (): Promise<any> => {
-    await offlineDb.cachedTrips.clear();
-    await offlineDb.cachedPois.clear();
-    await offlineDb.outboxMutations.clear();
+    await offlineDb.clearAllData();
     try {
       localStorage.removeItem('taktudy_active_trip_id');
     } catch {}
@@ -198,18 +263,34 @@ export const tripsApi = {
   },
 
   duplicate: async (id: string): Promise<any> => {
-    return request(`/trips/${id}/duplicate`, { method: 'POST' });
+    const res = await request<any>(`/trips/${id}/duplicate`, { method: 'POST' });
+    if (res && res.id) {
+      const full = await request<FullTrip>(`/trips/${res.id}`);
+      await offlineDb.saveFullTrip(full);
+    }
+    return res;
   },
 
   addStage: async (tripId: string, data: { title: string; notes?: string }): Promise<any> => {
-    return request(`/trips/${tripId}/stages`, {
+    const res = await request(`/trips/${tripId}/stages`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    // Refresh local cache
+    try {
+      const full = await request<FullTrip>(`/trips/${tripId}`);
+      await offlineDb.saveFullTrip(full);
+    } catch {}
+    return res;
   },
 
   deleteStage: async (tripId: string, stageId: string): Promise<any> => {
-    return request(`/trips/${tripId}/stages/${stageId}`, { method: 'DELETE' });
+    const res = await request(`/trips/${tripId}/stages/${stageId}`, { method: 'DELETE' });
+    try {
+      const full = await request<FullTrip>(`/trips/${tripId}`);
+      await offlineDb.saveFullTrip(full);
+    } catch {}
+    return res;
   },
 
   addDay: async (
@@ -225,14 +306,24 @@ export const tripsApi = {
       transit_time_est?: string;
     }
   ): Promise<any> => {
-    return request(`/trips/${tripId}/days`, {
+    const res = await request(`/trips/${tripId}/days`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    try {
+      const full = await request<FullTrip>(`/trips/${tripId}`);
+      await offlineDb.saveFullTrip(full);
+    } catch {}
+    return res;
   },
 
   deleteDay: async (tripId: string, dayId: string): Promise<any> => {
-    return request(`/trips/${tripId}/days/${dayId}`, { method: 'DELETE' });
+    const res = await request(`/trips/${tripId}/days/${dayId}`, { method: 'DELETE' });
+    try {
+      const full = await request<FullTrip>(`/trips/${tripId}`);
+      await offlineDb.saveFullTrip(full);
+    } catch {}
+    return res;
   },
 
   aiPropose: async (prompt: string): Promise<any> => {
@@ -243,10 +334,17 @@ export const tripsApi = {
   },
 
   importRoute: async (content: string, filename: string, createTrip: boolean = false): Promise<any> => {
-    return request('/trips/import', {
+    const res = await request<any>('/trips/import', {
       method: 'POST',
       body: JSON.stringify({ content, filename, createTrip }),
     });
+    if (createTrip && res && res.id) {
+      try {
+        const full = await request<FullTrip>(`/trips/${res.id}`);
+        await offlineDb.saveFullTrip(full);
+      } catch {}
+    }
+    return res;
   },
 
   optimizeRoute: async (tripId: string): Promise<any> => {
@@ -277,10 +375,79 @@ export const tripsApi = {
   },
 
   replaceRoute: async (tripId: string, content: string, filename: string = 'chatgpt-plan.json'): Promise<any> => {
-    return request(`/trips/${tripId}/replace-route`, {
+    const res = await request(`/trips/${tripId}/replace-route`, {
       method: 'POST',
       body: JSON.stringify({ content, filename }),
     });
+    try {
+      const full = await request<FullTrip>(`/trips/${tripId}`);
+      await offlineDb.saveFullTrip(full);
+    } catch {}
+    return res;
+  },
+
+  /**
+   * Export all full trips into a downloadable JSON backup
+   */
+  exportAllBackupJson: async (): Promise<string> => {
+    const allTrips = await offlineDb.getAllFullTrips();
+    const backupData = {
+      app: 'TakTudy',
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      tripsCount: allTrips.length,
+      trips: allTrips,
+    };
+    return JSON.stringify(backupData, null, 2);
+  },
+
+  /**
+   * Import all full trips from a JSON backup string and sync to server
+   */
+  restoreFromBackupJson: async (jsonText: string): Promise<{ success: boolean; count: number }> => {
+    const data = JSON.parse(jsonText);
+    const tripsArray: FullTrip[] = Array.isArray(data) ? data : data.trips;
+
+    if (!Array.isArray(tripsArray) || tripsArray.length === 0) {
+      throw new Error('Soubor zálohy neobsahuje žádné platné trasy.');
+    }
+
+    if (tripsArray.length > MAX_TRIPS_LIMIT) {
+      throw new Error(`Záloha obsahuje ${tripsArray.length} tras, což překračuje limit ${MAX_TRIPS_LIMIT} tras.`);
+    }
+
+    let restored = 0;
+    for (const trip of tripsArray) {
+      if (!trip || !trip.title) continue;
+      if (!trip.id) trip.id = `trip_${Math.random().toString(36).substring(2, 9)}`;
+
+      // 1. Save to local Dexie & Vault
+      await offlineDb.saveFullTrip(trip);
+
+      // 2. Push to server if online
+      if (navigator.onLine) {
+        try {
+          await request('/trips/restore-full', {
+            method: 'POST',
+            body: JSON.stringify({
+              trip,
+              stages: trip.stages || [],
+              days: trip.days || [],
+              pois: trip.pois || [],
+              accommodations: trip.accommodations || [],
+              bookings: trip.bookings || [],
+              reminders: trip.reminders || [],
+              subRoutes: trip.subRoutes || [],
+            }),
+          });
+        } catch (e) {
+          console.warn(`Nepodařilo se odeslat trasu „${trip.title}“ na server:`, e);
+        }
+      }
+      restored++;
+    }
+
+    return { success: true, count: restored };
   },
 };
 

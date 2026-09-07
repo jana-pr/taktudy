@@ -19,6 +19,7 @@ import {
   Image as ImageIcon,
   Globe,
   DollarSign,
+  Lightbulb,
 } from 'lucide-react';
 
 interface PoiDetailModalProps {
@@ -32,6 +33,7 @@ interface PoiDetailModalProps {
   onToggleVisit: (poiId: string, currentStatus: string) => void;
   onDeletePoi: (poiId: string) => void;
   onSaveEdit: (poiId: string, updatedData: Partial<POI>) => void;
+  onDuplicateToTips?: (poi: POI) => Promise<boolean> | void;
   isReadOnly?: boolean;
 }
 
@@ -46,9 +48,12 @@ export const PoiDetailModal: React.FC<PoiDetailModalProps> = ({
   onToggleVisit,
   onDeletePoi,
   onSaveEdit,
+  onDuplicateToTips,
   isReadOnly = false,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [isCopyingToTips, setIsCopyingToTips] = useState(false);
+  const [copiedToTipsSuccess, setCopiedToTipsSuccess] = useState(false);
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editNotes, setEditNotes] = useState('');
@@ -125,6 +130,20 @@ export const PoiDetailModal: React.FC<PoiDetailModalProps> = ({
       ? `maps://?q=${encodeURIComponent(poi.name)}&ll=${poi.lat},${poi.lng}`
       : `https://www.google.com/maps/dir/?api=1&destination=${poi.lat},${poi.lng}`;
     window.open(url, '_blank');
+  };
+
+  const handleDuplicateToTips = async () => {
+    if (!poi || !onDuplicateToTips || isCopyingToTips) return;
+    try {
+      setIsCopyingToTips(true);
+      await onDuplicateToTips(poi);
+      setCopiedToTipsSuccess(true);
+      setTimeout(() => setCopiedToTipsSuccess(false), 3000);
+    } catch (err) {
+      console.error('Chyba při kopírování místa do Tipů:', err);
+    } finally {
+      setIsCopyingToTips(false);
+    }
   };
 
   return (
@@ -580,6 +599,25 @@ export const PoiDetailModal: React.FC<PoiDetailModalProps> = ({
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     <span>{isVisited ? 'Navštíveno ✓' : 'Označit navštíveno'}</span>
+                  </button>
+                )}
+
+                {/* Duplicate to Tips */}
+                {onDuplicateToTips && (
+                  <button
+                    type="button"
+                    onClick={handleDuplicateToTips}
+                    disabled={isCopyingToTips}
+                    className={`py-3 px-3.5 rounded-xl border font-semibold text-xs flex items-center gap-1.5 transition-all ${
+                      copiedToTipsSuccess
+                        ? 'bg-amber-100 dark:bg-amber-950/60 border-amber-400 text-amber-800 dark:text-amber-200'
+                        : 'border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:border-amber-300 hover:text-amber-700 dark:hover:text-amber-300'
+                    }`}
+                    title="Zkopírovat toto místo do Tipů (zůstane i v této trase)"
+                    aria-label="Zkopírovat místo do Tipů"
+                  >
+                    <Lightbulb className={`w-4 h-4 ${copiedToTipsSuccess ? 'text-amber-600 fill-amber-500' : 'text-amber-500'}`} />
+                    <span>{copiedToTipsSuccess ? 'V Tipech ✓' : 'Do Tipů'}</span>
                   </button>
                 )}
 

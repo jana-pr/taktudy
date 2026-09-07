@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FullTrip, Day, POI } from '../types';
 import { tripsApi } from '../api/client';
 import { calculateTripBudget } from '../utils/budgetCalculator';
+import { getTripStatusInfo } from '../utils/tripSort';
 import {
   Calendar,
   Users,
@@ -96,6 +97,24 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
 
+  // Trip completion state & toggle
+  const isTripCompleted = trip.status === 'completed' || trip.status === 'archived';
+  const statusInfo = getTripStatusInfo(trip.status);
+  const [togglingStatus, setTogglingStatus] = useState(false);
+
+  const handleToggleCompleted = async () => {
+    try {
+      setTogglingStatus(true);
+      const newStatus = isTripCompleted ? 'planning' : 'completed';
+      await tripsApi.update(trip.id, { status: newStatus });
+      if (onTripUpdated) await onTripUpdated();
+    } catch (err) {
+      console.error('Chyba při změně stavu cesty:', err);
+    } finally {
+      setTogglingStatus(false);
+    }
+  };
+
   useEffect(() => {
     setNotesText(trip.notes || '');
   }, [trip.notes]);
@@ -174,9 +193,25 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <Compass className="w-3.5 h-3.5" />
             {trip.country_region || 'Srí Lanka'}
           </span>
-          <span className="px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full text-xs font-medium">
-            {trip.status === 'planning' ? 'Připravujeme' : 'Aktivní cesta'}
-          </span>
+          <button
+            type="button"
+            onClick={handleToggleCompleted}
+            disabled={togglingStatus}
+            title={isTripCompleted ? 'Znovu otevřít cestu (přepnout do plánování)' : 'Označit cestu jako dokončenou'}
+            className={`px-3 py-1 rounded-full text-xs font-semibold border flex items-center gap-1.5 transition-all cursor-pointer hover:opacity-95 ${
+              isTripCompleted
+                ? 'bg-stone-800/80 text-stone-200 border-stone-600/70 shadow-inner'
+                : trip.status === 'planning'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+            }`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusInfo.dotClass}`} />
+            <span>{statusInfo.label}</span>
+            <span className="text-[10px] text-teal-200/80 font-normal ml-0.5">
+              • {isTripCompleted ? 'Znovu otevřít' : 'Dokončit cestu'}
+            </span>
+          </button>
         </div>
 
         <h1 className="text-2xl sm:text-4xl font-bold tracking-tight mb-2">

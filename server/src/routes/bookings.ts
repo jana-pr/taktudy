@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify';
-import { db } from '../db.js';
+import { db, saveTripsBackupToJson } from '../db.js';
 import crypto from 'crypto';
 
 export const bookingsRoutes: FastifyPluginAsync = async (fastify) => {
@@ -71,6 +71,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (fastify) => {
       now
     );
 
+    saveTripsBackupToJson();
     const created = db.prepare('SELECT * FROM bookings WHERE id = ?').get(id);
     return created;
   });
@@ -142,6 +143,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (fastify) => {
       tripId
     );
 
+    saveTripsBackupToJson();
     const updated = db.prepare('SELECT * FROM bookings WHERE id = ?').get(id);
     return updated;
   });
@@ -152,6 +154,7 @@ export const bookingsRoutes: FastifyPluginAsync = async (fastify) => {
   }>('/:tripId/bookings/:id', async (request, reply) => {
     const { tripId, id } = request.params;
     db.prepare('DELETE FROM bookings WHERE id = ? AND trip_id = ?').run(id, tripId);
+    saveTripsBackupToJson();
     return { success: true };
   });
 };

@@ -2,14 +2,19 @@ services:
   - type: web
     name: tak-tudy
     runtime: node
-    plan: free
+    plan: starter
     region: frankfurt
     buildCommand: npm install && npm run build
     startCommand: npm start
+    disk:
+      name: taktudy-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: 22
       - key: JWT_SECRET
         generateValue: true
       - key: DATA_DIR
-        value: ./data
+        value: /var/data
+

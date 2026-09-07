@@ -1563,8 +1563,16 @@ export function saveTripsBackupToJson() {
 
 export function restoreTripsFromBackupJson() {
   try {
-    if (!fs.existsSync(BACKUP_FILE)) return;
-    const raw = fs.readFileSync(BACKUP_FILE, 'utf-8');
+    let backupPath = BACKUP_FILE;
+    if (!fs.existsSync(backupPath)) {
+      const bundled = path.resolve(process.cwd(), 'data', 'trips-backup.json');
+      if (fs.existsSync(bundled)) {
+        backupPath = bundled;
+      } else {
+        return;
+      }
+    }
+    const raw = fs.readFileSync(backupPath, 'utf-8');
     const data = JSON.parse(raw);
     if (!data || !Array.isArray(data.trips) || data.trips.length === 0) return;
 

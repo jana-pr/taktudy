@@ -30,6 +30,7 @@ import {
   FileText,
   Inbox,
   X,
+  Lightbulb,
 } from 'lucide-react';
 import { tripsApi } from '../api/client';
 
@@ -43,6 +44,7 @@ interface PlanViewProps {
   onAddStage?: (title: string) => Promise<void>;
   onMovePoiStage?: (poiId: string, stageId: string | null) => Promise<void>;
   onTripUpdated?: () => void;
+  onDuplicateToTips?: (poi: POI) => Promise<boolean> | void;
 }
 
 export const PlanView: React.FC<PlanViewProps> = ({
@@ -55,6 +57,7 @@ export const PlanView: React.FC<PlanViewProps> = ({
   onAddStage,
   onMovePoiStage,
   onTripUpdated,
+  onDuplicateToTips,
 }) => {
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   const [movingPoiId, setMovingPoiId] = useState<string | null>(null);
@@ -794,6 +797,22 @@ export const PlanView: React.FC<PlanViewProps> = ({
                             >
                               <ArrowRightLeft className="w-3.5 h-3.5" />
                             </button>
+
+                            {/* Duplicate to Tips button */}
+                            {onDuplicateToTips && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDuplicateToTips(poi);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-amber-500 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+                                title="Zkopírovat toto místo do Tipů"
+                                aria-label={`Zkopírovat ${poi.name} do Tipů`}
+                              >
+                                <Lightbulb className="w-3.5 h-3.5" />
+                              </button>
+                            )}
 
                             {/* Navigate in Google Maps button */}
                             <button

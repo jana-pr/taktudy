@@ -1,4 +1,4 @@
-export type TripStatus = 'idea' | 'planning' | 'ready' | 'traveling' | 'completed' | 'archived';
+export type TripStatus = 'idea' | 'planning' | 'ready' | 'traveling' | 'active' | 'completed' | 'archived';
 
 export type TimeMode = 'none' | 'approximate' | 'fixed';
 

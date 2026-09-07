@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify';
-import { db } from '../db.js';
+import { db, saveTripsBackupToJson } from '../db.js';
 import { z } from 'zod';
 import crypto from 'node:crypto';
 
@@ -154,6 +154,7 @@ export const poiRoutes: FastifyPluginAsync = async (fastify) => {
       now
     );
 
+    saveTripsBackupToJson();
     return { id, tripId, ...d, sortOrder: maxOrder + 1, version: 1, createdAt: now, updatedAt: now };
   });
 
@@ -249,7 +250,9 @@ export const poiRoutes: FastifyPluginAsync = async (fastify) => {
       tripId
     );
 
-    return { id, version: newVersion, updatedAt: now };
+    saveTripsBackupToJson();
+    const updated = db.prepare('SELECT * FROM pois WHERE id = ?').get(id);
+    return updated;
   });
 
   // Toggle TOP flag
@@ -259,7 +262,7 @@ export const poiRoutes: FastifyPluginAsync = async (fastify) => {
 
     const poi = db
       .prepare(`
-        SELECT p.id, p.is_top, p.version 
+        SELECT p.* 
         FROM pois p 
         JOIN trips t ON p.trip_id = t.id 
         WHERE p.id = ? AND p.trip_id = ? AND (t.owner_id = ? OR t.owner_id = 'usr_demo_001' OR t.id = 'trip_srilanka_2026')
@@ -281,7 +284,42 @@ export const poiRoutes: FastifyPluginAsync = async (fastify) => {
       id
     );
 
+    saveTripsBackupToJson();
     return { id, isTop: Boolean(nextTop), version: newVersion };
+  });
+
+  // Toggle enabled/disabled
+  fastify.put('/:tripId/pois/:id/toggle-enabled', async (request, reply) => {
+    const userId = (request.user as any).id;
+    const { tripId, id } = request.params as { tripId: string; id: string };
+    const { is_enabled } = (request.body as any) || {};
+
+    const poi = db
+      .prepare(`
+        SELECT p.* 
+        FROM pois p 
+        JOIN trips t ON p.trip_id = t.id 
+        WHERE p.id = ? AND p.trip_id = ? AND (t.owner_id = ? OR t.owner_id = 'usr_demo_001' OR t.id = 'trip_srilanka_2026')
+      `)
+      .get(id, tripId, userId) as any;
+
+    if (!poi) {
+      return reply.status(404).send({ error: 'Bod nebyl nalezen.' });
+    }
+
+    const nextEnabled = is_enabled !== undefined ? (is_enabled ? 1 : 0) : (poi.is_enabled ? 0 : 1);
+    const now = new Date().toISOString();
+    const newVersion = poi.version + 1;
+
+    db.prepare('UPDATE pois SET is_enabled = ?, version = ?, updated_at = ? WHERE id = ?').run(
+      nextEnabled,
+      newVersion,
+      now,
+      id
+    );
+
+    saveTripsBackupToJson();
+    return { id, is_enabled: Boolean(nextEnabled), version: newVersion };
   });
 
   // Update visit status
@@ -296,7 +334,7 @@ export const poiRoutes: FastifyPluginAsync = async (fastify) => {
 
     const poi = db
       .prepare(`
-        SELECT p.id, p.version 
+        SELECT p.* 
         FROM pois p 
         JOIN trips t ON p.trip_id = t.id 
         WHERE p.id = ? AND p.trip_id = ? AND (t.owner_id = ? OR t.owner_id = 'usr_demo_001' OR t.id = 'trip_srilanka_2026')
@@ -317,6 +355,7 @@ export const poiRoutes: FastifyPluginAsync = async (fastify) => {
       id
     );
 
+    saveTripsBackupToJson();
     return { id, visitStatus: status, version: newVersion };
   });
 
@@ -342,6 +381,7 @@ export const poiRoutes: FastifyPluginAsync = async (fastify) => {
       updateStmt.run(index + 1, now, poiId, tripId);
     });
 
+    saveTripsBackupToJson();
     return { success: true };
   });
 
@@ -365,6 +405,7 @@ export const poiRoutes: FastifyPluginAsync = async (fastify) => {
 
     const now = new Date().toISOString();
     db.prepare('UPDATE pois SET is_deleted = 1, updated_at = ? WHERE id = ?').run(now, id);
+    saveTripsBackupToJson();
 
     return { success: true, id };
   });

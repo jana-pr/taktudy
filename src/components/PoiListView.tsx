@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { POI, Category } from '../types';
-import { Search, Star, MapPin, ChevronRight, CheckCircle2, Circle, Clock, Plus } from 'lucide-react';
+import { Search, Star, MapPin, ChevronRight, CheckCircle2, Circle, Clock, Plus, Lightbulb } from 'lucide-react';
 
 interface PoiListViewProps {
   pois: POI[];
@@ -9,6 +9,7 @@ interface PoiListViewProps {
   onToggleTop: (poiId: string) => void;
   onToggleVisit: (poiId: string, currentStatus: string) => void;
   onOpenQuickAdd?: () => void;
+  onDuplicateToTips?: (poi: POI) => Promise<boolean> | void;
 }
 
 export const PoiListView: React.FC<PoiListViewProps> = ({
@@ -18,6 +19,7 @@ export const PoiListView: React.FC<PoiListViewProps> = ({
   onToggleTop,
   onToggleVisit,
   onOpenQuickAdd,
+  onDuplicateToTips,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -220,6 +222,22 @@ export const PoiListView: React.FC<PoiListViewProps> = ({
                       <Circle className="w-4 h-4 stroke-stone-300" />
                     )}
                   </button>
+
+                  {/* Duplicate to Tips */}
+                  {onDuplicateToTips && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDuplicateToTips(poi);
+                      }}
+                      className="p-2 rounded-lg text-stone-300 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+                      title="Zkopírovat do Tipů"
+                      aria-label={`Zkopírovat ${poi.name} do Tipů`}
+                    >
+                      <Lightbulb className="w-4 h-4" />
+                    </button>
+                  )}
 
                   {/* Open Detail Affordance */}
                   <ChevronRight className="w-5 h-5 text-stone-300 group-hover:text-outdoor-teal ml-1 transition-colors" />
