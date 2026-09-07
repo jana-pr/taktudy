@@ -1103,29 +1103,6 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true, room_scenario };
   });
 
-  // Toggle optional activity / POI enabled state
-  fastify.put('/:id/pois/:poiId/toggle-enabled', async (request, reply) => {
-    const userId = (request.user as any).id;
-    const { id, poiId } = request.params as { id: string; poiId: string };
-    const { is_enabled } = request.body as { is_enabled?: boolean };
-
-    const poi = db
-      .prepare('SELECT id, is_enabled FROM pois WHERE id = ? AND trip_id = ?')
-      .get(poiId, id) as any;
-
-    if (!poi) {
-      return reply.status(404).send({ error: 'Místo nebylo nalezeno.' });
-    }
-
-    const newEnabled = is_enabled !== undefined ? (is_enabled ? 1 : 0) : poi.is_enabled ? 0 : 1;
-    db.prepare('UPDATE pois SET is_enabled = ?, updated_at = ? WHERE id = ?').run(
-      newEnabled,
-      new Date().toISOString(),
-      poiId
-    );
-
-    return { success: true, poiId, is_enabled: Boolean(newEnabled) };
-  });
 
   // Drag & drop reorder POIs
   fastify.post('/:id/reorder-pois', async (request, reply) => {
