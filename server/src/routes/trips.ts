@@ -103,6 +103,22 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
     const tripId = trip.id;
     const now = new Date().toISOString();
 
+    // Ensure user exists in users table to prevent FOREIGN KEY violation after server restart
+    const userExists = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
+    if (!userExists) {
+      db.prepare(`
+        INSERT OR IGNORE INTO users (id, email, password_hash, display_name, created_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(
+        userId,
+        (request.user as any).email || `user_${userId}@taktudy.app`,
+        'restored_user_hash',
+        (request.user as any).displayName || 'Cestovatel',
+        now
+      );
+    }
+
+    db.exec('PRAGMA foreign_keys = OFF;');
     db.exec('BEGIN TRANSACTION;');
     try {
       // 1. Insert or update trip
@@ -352,6 +368,8 @@ export const tripRoutes: FastifyPluginAsync = async (fastify) => {
       db.exec('ROLLBACK;');
       console.error('Chyba restore-full:', err);
       return reply.status(500).send({ error: 'Chyba při obnově cesty', details: err.message });
+    } finally {
+      db.exec('PRAGMA foreign_keys = ON;');
     }
   });
 

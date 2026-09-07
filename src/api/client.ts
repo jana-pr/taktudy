@@ -79,8 +79,113 @@ export const authApi = {
 // Trips API
 export const MAX_TRIPS_LIMIT = 30;
 
+// Universal helper to normalize any JSON backup structure into FullTrip[]
+export function normalizeBackupPayload(raw: any): FullTrip[] {
+  if (!raw) return [];
+
+  // Case A: raw is an array of trips
+  if (Array.isArray(raw)) {
+    return raw
+      .filter((t) => t && (t.title || t.id))
+      .map((t) => ({
+        ...t,
+        stages: t.stages || [],
+        days: t.days || [],
+        pois: t.pois || [],
+        accommodations: t.accommodations || [],
+        bookings: t.bookings || [],
+        reminders: t.reminders || [],
+        subRoutes: t.subRoutes || [],
+      }));
+  }
+
+  // Case B: single trip object
+  if (raw.title && (raw.id || raw.days || raw.pois || raw.start_date)) {
+    return [
+      {
+        ...raw,
+        stages: raw.stages || [],
+        days: raw.days || [],
+        pois: raw.pois || [],
+        accommodations: raw.accommodations || [],
+        bookings: raw.bookings || [],
+        reminders: raw.reminders || [],
+        subRoutes: raw.subRoutes || [],
+      },
+    ];
+  }
+
+  // Case C: wrapped single trip
+  if (raw.trip && (raw.trip.title || raw.trip.id)) {
+    return [
+      {
+        ...raw.trip,
+        stages: raw.stages || raw.trip.stages || [],
+        days: raw.days || raw.trip.days || [],
+        pois: raw.pois || raw.trip.pois || [],
+        accommodations: raw.accommodations || raw.trip.accommodations || [],
+        bookings: raw.bookings || raw.trip.bookings || [],
+        reminders: raw.reminders || raw.trip.reminders || [],
+        subRoutes: raw.subRoutes || raw.trip.subRoutes || [],
+      },
+    ];
+  }
+
+  // Case D: relational or nested trips array
+  const rawTrips = Array.isArray(raw.trips)
+    ? raw.trips
+    : Array.isArray(raw.data?.trips)
+    ? raw.data.trips
+    : Array.isArray(raw.data)
+    ? raw.data
+    : null;
+
+  if (Array.isArray(rawTrips) && rawTrips.length > 0) {
+    const rootPois = Array.isArray(raw.pois) ? raw.pois : [];
+    const rootDays = Array.isArray(raw.days) ? raw.days : [];
+    const rootStages = Array.isArray(raw.stages) ? raw.stages : [];
+    const rootAccommodations = Array.isArray(raw.accommodations) ? raw.accommodations : [];
+    const rootBookings = Array.isArray(raw.bookings) ? raw.bookings : [];
+    const rootReminders = Array.isArray(raw.reminders) ? raw.reminders : [];
+    const rootSubRoutes = Array.isArray(raw.subRoutes) ? raw.subRoutes : [];
+
+    const isRelational =
+      rootPois.length > 0 || rootDays.length > 0 || rootAccommodations.length > 0;
+
+    return rawTrips
+      .filter((t: any) => t && (t.title || t.id))
+      .map((t: any) => {
+        if (isRelational) {
+          return {
+            ...t,
+            stages: (t.stages && t.stages.length > 0) ? t.stages : rootStages.filter((s: any) => s.trip_id === t.id),
+            days: (t.days && t.days.length > 0) ? t.days : rootDays.filter((d: any) => d.trip_id === t.id),
+            pois: (t.pois && t.pois.length > 0) ? t.pois : rootPois.filter((p: any) => p.trip_id === t.id),
+            accommodations: (t.accommodations && t.accommodations.length > 0) ? t.accommodations : rootAccommodations.filter((a: any) => a.trip_id === t.id),
+            bookings: (t.bookings && t.bookings.length > 0) ? t.bookings : rootBookings.filter((b: any) => b.trip_id === t.id),
+            reminders: (t.reminders && t.reminders.length > 0) ? t.reminders : rootReminders.filter((r: any) => r.trip_id === t.id),
+            subRoutes: (t.subRoutes && t.subRoutes.length > 0) ? t.subRoutes : rootSubRoutes.filter((sr: any) => sr.trip_id === t.id),
+          };
+        }
+        return {
+          ...t,
+          stages: t.stages || [],
+          days: t.days || [],
+          pois: t.pois || [],
+          accommodations: t.accommodations || [],
+          bookings: t.bookings || [],
+          reminders: t.reminders || [],
+          subRoutes: t.subRoutes || [],
+        };
+      });
+  }
+
+  return [];
+}
+
 // Trips API
 export const tripsApi = {
+  normalizeBackupPayload,
   list: async (): Promise<Trip[]> => {
     // 0. Safety: check if fallback in localStorage should be loaded into Dexie
     try {
@@ -419,24 +524,27 @@ export const tripsApi = {
   },
 
   /**
-   * Import all full trips from a JSON backup string and sync to server
+   * Import all full trips from any JSON backup format (nested, relational, single trip) and sync to server
    */
   restoreFromBackupJson: async (jsonText: string): Promise<{ success: boolean; count: number }> => {
-    const data = JSON.parse(jsonText);
-    const tripsArray: FullTrip[] = Array.isArray(data) ? data : data.trips;
-
-    if (!Array.isArray(tripsArray) || tripsArray.length === 0) {
-      throw new Error('Soubor zálohy neobsahuje žádné platné trasy.');
+    let data: any;
+    try {
+      data = JSON.parse(jsonText);
+    } catch {
+      throw new Error('Vybraný soubor není platný JSON soubor. Zkontrolujte prosím formát.');
     }
 
-    if (tripsArray.length > MAX_TRIPS_LIMIT) {
-      throw new Error(`Záloha obsahuje ${tripsArray.length} tras, což překračuje limit ${MAX_TRIPS_LIMIT} tras.`);
+    const tripsArray = normalizeBackupPayload(data);
+
+    if (!Array.isArray(tripsArray) || tripsArray.length === 0) {
+      throw new Error('V souboru nebyly nalezeny žádné platné trasy. Zkontrolujte, zda soubor obsahuje cestu nebo zálohu.');
     }
 
     let restored = 0;
     for (const trip of tripsArray) {
-      if (!trip || !trip.title) continue;
+      if (!trip || (!trip.title && !trip.id)) continue;
       if (!trip.id) trip.id = `trip_${Math.random().toString(36).substring(2, 9)}`;
+      if (!trip.title) trip.title = 'Obnovená cesta';
 
       // 1. Save to local Dexie & Vault
       await offlineDb.saveFullTrip(trip);
@@ -462,6 +570,10 @@ export const tripsApi = {
         }
       }
       restored++;
+    }
+
+    if (tripsArray.length > 0) {
+      localStorage.setItem('taktudy_active_trip_id', tripsArray[0].id);
     }
 
     return { success: true, count: restored };
